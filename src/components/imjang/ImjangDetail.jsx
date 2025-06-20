@@ -11,12 +11,18 @@ const ImjangDetail = () => {
     const loadDetail = async () => {
       if (selectedImjang) {
         setLoading(true);
-        await fetchImjangDetail(selectedImjang);
-        setLoading(false);
+        try {
+          await fetchImjangDetail(selectedImjang);
+        } catch (error) {
+          console.error('Failed to fetch imjang detail:', error);
+        } finally {
+          setLoading(false);
+        }
       }
     };
+    
     loadDetail();
-  }, [selectedImjang, fetchImjangDetail]);
+  }, [selectedImjang]); // fetchImjangDetail 제거
 
   if (loading) {
     return (
@@ -30,7 +36,25 @@ const ImjangDetail = () => {
   }
 
   const detail = imjangDetails;
-  if (!detail) return null;
+  if (!detail) {
+    return (
+      <div className="min-h-screen">
+        <Header />
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <button
+            onClick={() => setCurrentView('list')}
+            className="btn-secondary mb-6 flex items-center space-x-2"
+          >
+            <ChevronRight className="w-4 h-4 rotate-180" />
+            <span>목록으로 돌아가기</span>
+          </button>
+          <div className="glass-effect rounded-2xl p-8 text-center">
+            <p className="text-white">데이터를 찾을 수 없습니다.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -80,26 +104,36 @@ const ImjangDetail = () => {
                     <span>가격</span>
                     <span className="font-semibold text-white">{detail.price}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>면적</span>
-                    <span>{detail.details.area}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>층수</span>
-                    <span>{detail.details.floor}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>방향</span>
-                    <span>{detail.details.direction}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>주차</span>
-                    <span>{detail.details.parking}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>관리비</span>
-                    <span>{detail.details.maintenance}</span>
-                  </div>
+                  {detail.details?.area && (
+                    <div className="flex justify-between">
+                      <span>면적</span>
+                      <span>{detail.details.area}</span>
+                    </div>
+                  )}
+                  {detail.details?.floor && (
+                    <div className="flex justify-between">
+                      <span>층수</span>
+                      <span>{detail.details.floor}</span>
+                    </div>
+                  )}
+                  {detail.details?.direction && (
+                    <div className="flex justify-between">
+                      <span>방향</span>
+                      <span>{detail.details.direction}</span>
+                    </div>
+                  )}
+                  {detail.details?.parking && (
+                    <div className="flex justify-between">
+                      <span>주차</span>
+                      <span>{detail.details.parking}</span>
+                    </div>
+                  )}
+                  {detail.details?.maintenance && (
+                    <div className="flex justify-between">
+                      <span>관리비</span>
+                      <span>{detail.details.maintenance}</span>
+                    </div>
+                  )}
                 </div>
               </div>
               
@@ -127,33 +161,43 @@ const ImjangDetail = () => {
             <div className="space-y-6">
               <div className="bg-white/5 rounded-2xl p-6">
                 <h3 className="text-xl font-semibold text-white mb-4">장점</h3>
-                <ul className="space-y-2">
-                  {detail.details.pros.map((pro, index) => (
-                    <li key={index} className="text-green-300 flex items-start">
-                      <span className="text-green-400 mr-2">✓</span>
-                      {pro}
-                    </li>
-                  ))}
-                </ul>
+                {detail.details?.pros && detail.details.pros.length > 0 ? (
+                  <ul className="space-y-2">
+                    {detail.details.pros.map((pro, index) => (
+                      <li key={index} className="text-green-300 flex items-start">
+                        <span className="text-green-400 mr-2">✓</span>
+                        {pro}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-white/50">등록된 장점이 없습니다.</p>
+                )}
               </div>
               
               <div className="bg-white/5 rounded-2xl p-6">
                 <h3 className="text-xl font-semibold text-white mb-4">단점</h3>
-                <ul className="space-y-2">
-                  {detail.details.cons.map((con, index) => (
-                    <li key={index} className="text-red-300 flex items-start">
-                      <span className="text-red-400 mr-2">✗</span>
-                      {con}
-                    </li>
-                  ))}
-                </ul>
+                {detail.details?.cons && detail.details.cons.length > 0 ? (
+                  <ul className="space-y-2">
+                    {detail.details.cons.map((con, index) => (
+                      <li key={index} className="text-red-300 flex items-start">
+                        <span className="text-red-400 mr-2">✗</span>
+                        {con}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-white/50">등록된 단점이 없습니다.</p>
+                )}
               </div>
             </div>
           </div>
           
           <div className="bg-white/5 rounded-2xl p-6">
             <h3 className="text-xl font-semibold text-white mb-4">메모</h3>
-            <p className="text-white/80 leading-relaxed">{detail.details.memo}</p>
+            <p className="text-white/80 leading-relaxed">
+              {detail.details?.memo || '등록된 메모가 없습니다.'}
+            </p>
           </div>
           
           <div className="flex justify-end space-x-4 mt-8">

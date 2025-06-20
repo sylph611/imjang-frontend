@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { mockAPI } from '../services/mockAPI';
 
 const AppContext = createContext();
@@ -31,16 +31,16 @@ export const AppProvider = ({ children }) => {
     }
   }, []);
 
-  const login = async (email, password) => {
+  const login = useCallback(async (email, password) => {
     const response = await mockAPI.login(email, password);
     setToken(response.token);
     setUser(response.user);
     sessionStorage.setItem('token', response.token);
     sessionStorage.setItem('user', JSON.stringify(response.user));
     await fetchImjangList(response.token);
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setToken(null);
     setUser(null);
     setImjangList([]);
@@ -49,27 +49,28 @@ export const AppProvider = ({ children }) => {
     setCurrentView('list');
     sessionStorage.removeItem('token');
     sessionStorage.removeItem('user');
-  };
+  }, []);
 
-  const fetchImjangList = async (authToken = token) => {
+  const fetchImjangList = useCallback(async (authToken = token) => {
     try {
       const list = await mockAPI.getImjangList(authToken);
       setImjangList(list);
     } catch (error) {
       console.error('Failed to fetch imjang list:', error);
     }
-  };
+  }, [token]);
 
-  const fetchImjangDetail = async (id) => {
+  const fetchImjangDetail = useCallback(async (id) => {
     try {
       const detail = await mockAPI.getImjangDetail(id, token);
       setImjangDetails(detail);
     } catch (error) {
       console.error('Failed to fetch imjang detail:', error);
+      throw error;
     }
-  };
+  }, [token]);
 
-  const addImjang = async (imjangData) => {
+  const addImjang = useCallback(async (imjangData) => {
     try {
       // 서버에 저장할 데이터 구조로 변환
       const dataToSave = {
@@ -97,7 +98,14 @@ export const AppProvider = ({ children }) => {
       console.error('Failed to add imjang:', error);
       throw error;
     }
-  };
+  }, [token]);
+
+  // selectedImjang이 변경될 때 imjangDetails 초기화
+  useEffect(() => {
+    if (selectedImjang === null) {
+      setImjangDetails(null);
+    }
+  }, [selectedImjang]);
 
   const contextValue = {
     user,
