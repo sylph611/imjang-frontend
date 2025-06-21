@@ -1,8 +1,8 @@
 // 실제 백엔드 API와 통신하는 함수들
 const getApiBase = () => {
   if (process.env.NODE_ENV === 'production') {
-    // 프로덕션에서는 API 서버가 별도 도메인일 수 있음
-    return process.env.REACT_APP_API_URL || 'https://sylph611.com';
+    // 프로덕션에서는 환경 변수 우선, 없으면 상대 경로 사용
+    return process.env.REACT_APP_API_URL || '';
   }
   
   // 개발 환경에서는 현재 호스트의 포트를 사용하거나 127.0.0.1 사용
