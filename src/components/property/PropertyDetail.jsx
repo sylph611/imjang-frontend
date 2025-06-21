@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, MapPin, Calendar, Star, Edit, Trash2, Home, Car, Train, Plus } from 'lucide-react';
+import { ChevronRight, MapPin, Star, Edit, Trash2, Home, Car, Train, Plus } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import Header from '../common/Header';
 import { api } from '../../services/mockAPI';

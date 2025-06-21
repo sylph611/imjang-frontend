@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronRight, Plus, Save, X, Star, Home, MapPin, Car, Train } from 'lucide-react';
+import { ChevronRight, Plus, Save, X, Star, Home, Car, Train } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import Header from '../common/Header';
 
