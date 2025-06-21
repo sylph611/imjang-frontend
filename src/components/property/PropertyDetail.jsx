@@ -690,6 +690,37 @@ const PropertyDetail = () => {
                 </div>
               </div>
 
+              {/* 추가 옵션 */}
+              <div className="mb-8">
+                <div className="bg-white/5 rounded-2xl p-6">
+                  <h3 className="text-xl font-semibold text-white mb-4">추가 옵션</h3>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          name="petAllowed"
+                          checked={form.details.petAllowed}
+                          onChange={(e) => handleDetailsChange('petAllowed', e.target.checked)}
+                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <label className="text-white/80 text-sm">반려동물 허용</label>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          name="shortTermRent"
+                          checked={form.details.shortTermRent}
+                          onChange={(e) => handleDetailsChange('shortTermRent', e.target.checked)}
+                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <label className="text-white/80 text-sm">단기 임대</label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex justify-end space-x-4 mt-8">
                 <button
                   type="button"
@@ -912,6 +943,35 @@ const PropertyDetail = () => {
                   <p className="text-white/80 leading-relaxed">
                     {detail.details?.memo || '등록된 메모가 없습니다.'}
                   </p>
+                </div>
+              </div>
+
+              {/* 추가 옵션 */}
+              <div className="mb-8">
+                <div className="bg-white/5 rounded-2xl p-6">
+                  <h3 className="text-xl font-semibold text-white mb-4">추가 옵션</h3>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-white/80">반려동물 허용</span>
+                        <span className="text-white">{detail.details?.petAllowed ? '예' : '아니오'}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-white/80">단기 임대</span>
+                        <span className="text-white">{detail.details?.shortTermRent ? '예' : '아니오'}</span>
+                      </div>
+                    </div>
+                    {detail.details?.options && detail.details.options.length > 0 && (
+                      <div>
+                        <span className="text-white/80 block mb-2">기타 옵션</span>
+                        <ul className="space-y-1">
+                          {detail.details.options.map((option, index) => (
+                            <li key={index} className="text-white">• {option}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
