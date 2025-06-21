@@ -50,7 +50,11 @@ export const api = {
       },
       body: JSON.stringify(data)
     });
-    if (!res.ok) throw new Error('수정 실패');
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error('Server response:', res.status, errorText);
+      throw new Error(`수정 실패 (${res.status}): ${errorText}`);
+    }
     return await res.json();
   },
 

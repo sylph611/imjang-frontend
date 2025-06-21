@@ -72,6 +72,7 @@ export const AppProvider = ({ children }) => {
 
   const addProperty = useCallback(async (propertyData) => {
     try {
+      // API 스펙에 맞는 데이터 구조로 변환
       const dataToSave = {
         title: propertyData.title,
         address: propertyData.address,
@@ -79,17 +80,45 @@ export const AppProvider = ({ children }) => {
         date: propertyData.date,
         rating: propertyData.rating,
         status: propertyData.status,
-        advantages: propertyData.pros.filter(item => item.trim() !== ''),
-        disadvantages: propertyData.cons.filter(item => item.trim() !== ''),
-        details: {
-          area: propertyData.area,
-          floor: propertyData.floor,
-          direction: propertyData.direction,
-          parking: propertyData.parking,
-          maintenance: propertyData.maintenance,
-          memo: propertyData.memo
-        }
+        images: propertyData.images,
+        
+        // 면적 관련
+        areaPyeong: propertyData.areaPyeong,
+        areaM2: propertyData.areaM2,
+        
+        // 공간 구성
+        roomCount: propertyData.roomCount,
+        bathroomCount: propertyData.bathroomCount,
+        
+        // 층수/방향
+        floorNumber: propertyData.floorNumber,
+        totalFloors: propertyData.totalFloors,
+        direction: propertyData.direction,
+        
+        // 건물 정보
+        buildingType: propertyData.buildingType,
+        buildYear: propertyData.buildYear,
+        
+        // 비용 관련
+        maintenanceFee: propertyData.maintenanceFee,
+        heatingType: propertyData.heatingType,
+        
+        // 편의시설
+        parkingAvailable: propertyData.parkingAvailable,
+        elevatorAvailable: propertyData.elevatorAvailable,
+        
+        // 교통 관련
+        nearestStation: propertyData.nearestStation,
+        walkingMinutes: propertyData.walkingMinutes,
+        
+        // 장점/단점
+        advantages: propertyData.advantages,
+        disadvantages: propertyData.disadvantages,
+        
+        // 추가 상세 정보
+        details: propertyData.details
       };
+      
       const newProperty = await api.createProperty(dataToSave, token);
       setPropertyList(prev => [newProperty, ...prev]);
     } catch (error) {
