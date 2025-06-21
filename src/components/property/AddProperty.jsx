@@ -561,6 +561,35 @@ const AddProperty = () => {
               />
             </div>
             
+            {/* 추가 옵션 */}
+            <div className="mt-6 bg-white/5 rounded-2xl p-6">
+              <h3 className="text-xl font-semibold text-white mb-4">추가 옵션</h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="checkbox"
+                      id="petAllowed"
+                      checked={formData.details.petAllowed}
+                      onChange={(e) => handleDetailsChange('petAllowed', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="petAllowed" className="text-white/80 text-sm">반려동물 허용</label>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="checkbox"
+                      id="shortTermRent"
+                      checked={formData.details.shortTermRent}
+                      onChange={(e) => handleDetailsChange('shortTermRent', e.target.checked)}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="shortTermRent" className="text-white/80 text-sm">단기 임대</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
             {/* 저장 버튼 */}
             <div className="flex justify-end space-x-4 mt-8">
               <button
