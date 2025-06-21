@@ -18,7 +18,7 @@ root.render(
 // If you want your app to work offline and load faster, you can change
 // unregister() to register() below. Note this comes with some pitfalls.
 // Learn more about service workers: https://cra.link/PWA
-// serviceWorkerRegistration.register(); // 임시로 비활성화 - 서버 MIME 타입 문제 해결 후 활성화
+serviceWorkerRegistration.register();
 
 // 성능 측정 (선택사항)
 reportWebVitals();
