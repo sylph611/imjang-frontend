@@ -1,9 +1,9 @@
 import React from 'react';
 import { useApp } from './context/AppContext';
 import Login from './components/auth/Login';
-import ImjangList from './components/imjang/ImjangList';
-import ImjangDetail from './components/imjang/ImjangDetail';
-import AddImjang from './components/imjang/AddImjang';
+import PropertyList from './components/property/PropertyList';
+import PropertyDetail from './components/property/PropertyDetail';
+import AddProperty from './components/property/AddProperty';
 
 const App = () => {
   const { token, currentView } = useApp();
@@ -15,13 +15,13 @@ const App = () => {
   const renderView = () => {
     switch (currentView) {
       case 'list':
-        return <ImjangList />;
+        return <PropertyList />;
       case 'detail':
-        return <ImjangDetail />;
+        return <PropertyDetail />;
       case 'add':
-        return <AddImjang />;
+        return <AddProperty />;
       default:
-        return <ImjangList />;
+        return <PropertyList />;
     }
   };
 

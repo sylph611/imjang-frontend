@@ -1,7 +1,7 @@
 {
   "name": "imjang-memo",
   "version": "1.0.0",
-  "description": "부동산 임장 기록 관리 앱",
+  "description": "부동산 매물 기록 관리 앱",
   "main": "src/index.js",
   "homepage": ".",
   "dependencies": {
@@ -40,5 +40,6 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
-  }
+  },
+  "proxy": "http://localhost:8080"
 }

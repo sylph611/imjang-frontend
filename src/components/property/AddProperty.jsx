@@ -3,8 +3,8 @@ import { ChevronRight, Plus, Save, X, Star } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import Header from '../common/Header';
 
-const AddImjang = () => {
-  const { setCurrentView, addImjang } = useApp();
+const AddProperty = () => {
+  const { setCurrentView, addProperty } = useApp();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -62,10 +62,10 @@ const AddImjang = () => {
 
     setLoading(true);
     try {
-      await addImjang(formData);
+      await addProperty(formData);
       setCurrentView('list');
     } catch (error) {
-      alert('임장 기록 저장에 실패했습니다.');
+      alert('매물 기록 저장에 실패했습니다.');
     }
     setLoading(false);
   };
@@ -84,7 +84,7 @@ const AddImjang = () => {
         </button>
         
         <div className="glass-effect rounded-3xl p-8 shadow-2xl animate-fade-in">
-          <h1 className="text-3xl font-bold text-white mb-8">새 임장 기록 등록</h1>
+          <h1 className="text-3xl font-bold text-white mb-8">새 매물 기록 등록</h1>
           
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -130,7 +130,7 @@ const AddImjang = () => {
                     </div>
                     
                     <div>
-                      <label className="block text-white/80 text-sm mb-2">임장일</label>
+                      <label className="block text-white/80 text-sm mb-2">매물일</label>
                       <input
                         type="date"
                         value={formData.date}
@@ -322,7 +322,7 @@ const AddImjang = () => {
                 onChange={(e) => handleInputChange('memo', e.target.value)}
                 rows={4}
                 className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
-                placeholder="임장 시 느낀 점이나 추가 정보를 자유롭게 작성하세요"
+                placeholder="매물 시 느낀 점이나 추가 정보를 자유롭게 작성하세요"
               />
             </div>
             
@@ -352,4 +352,4 @@ const AddImjang = () => {
   );
 };
 
-export default AddImjang;
+export default AddProperty;

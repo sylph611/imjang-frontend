@@ -12,7 +12,7 @@ const Header = () => {
           <div className="bg-gradient-to-r from-blue-400 to-purple-500 w-10 h-10 rounded-full flex items-center justify-center shadow-lg">
             <Building className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">임장 메모</h1>
+          <h1 className="text-2xl font-bold text-white">매물 메모</h1>
         </div>
         
         <div className="flex items-center space-x-4">

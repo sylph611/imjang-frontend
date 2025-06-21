@@ -32,8 +32,8 @@ const Login = () => {
           <div className="bg-gradient-to-r from-blue-400 to-purple-500 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
             <Building className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">임장 메모</h1>
-          <p className="text-white/70">부동산 임장 기록을 체계적으로 관리하세요</p>
+          <h1 className="text-3xl font-bold text-white mb-2">매물 메모</h1>
+          <p className="text-white/70">부동산 매물 기록을 체계적으로 관리하세요</p>
         </div>
         
         <form onSubmit={handleSubmit} className="space-y-6">

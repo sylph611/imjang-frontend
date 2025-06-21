@@ -182,3 +182,6 @@ bundle-analyzer-report.html
 
 # TypeScript (if you add TypeScript later)
 *.tsbuildinfo
+
+# Environment variable files
+.env*
