@@ -61,6 +61,11 @@ const apiCall = async (endpoint, options = {}) => {
       throw new Error(`API 호출 실패 (${res.status}): ${errorText}`);
     }
     
+    // DELETE와 같이 응답이 없는 경우 처리
+    if (res.status === 204 || options.method === 'DELETE') {
+      return;
+    }
+    
     return await res.json();
   } catch (error) {
     console.error('API Call Error:', error);

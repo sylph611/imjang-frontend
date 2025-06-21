@@ -127,6 +127,29 @@ export const AppProvider = ({ children }) => {
     }
   }, [token]);
 
+  const updateProperty = useCallback(async (id, propertyData) => {
+    try {
+      const updatedProperty = await api.updateProperty(id, propertyData, token);
+      setPropertyList(prev => prev.map(p => p.id === id ? updatedProperty : p));
+      setPropertyDetails(updatedProperty);
+    } catch (error) {
+      console.error('Failed to update property:', error);
+      throw error;
+    }
+  }, [token]);
+
+  const deleteProperty = useCallback(async (id) => {
+    try {
+      await api.deleteProperty(id, token);
+      setPropertyList(prev => prev.filter(p => p.id !== id));
+      setSelectedProperty(null);
+      setCurrentView('list');
+    } catch (error) {
+      console.error('Failed to delete property:', error);
+      throw error;
+    }
+  }, [token]);
+
   // selectedProperty이 변경될 때 propertyDetails 초기화
   useEffect(() => {
     if (selectedProperty === null) {
@@ -147,7 +170,9 @@ export const AppProvider = ({ children }) => {
     logout,
     fetchPropertyList,
     fetchPropertyDetail,
-    addProperty
+    addProperty,
+    updateProperty,
+    deleteProperty
   };
 
   return (
