@@ -4,6 +4,7 @@ import './index.css';
 import App from './App';
 import { AppProvider } from './context/AppContext';
 import reportWebVitals from './reportWebVitals';
+import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
@@ -13,6 +14,11 @@ root.render(
     </AppProvider>
   </React.StrictMode>
 );
+
+// If you want your app to work offline and load faster, you can change
+// unregister() to register() below. Note this comes with some pitfalls.
+// Learn more about service workers: https://cra.link/PWA
+serviceWorkerRegistration.register();
 
 // 성능 측정 (선택사항)
 reportWebVitals();
