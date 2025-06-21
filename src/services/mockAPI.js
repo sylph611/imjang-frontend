@@ -1,5 +1,14 @@
 // 실제 백엔드 API와 통신하는 함수들
-const API_BASE = process.env.REACT_APP_API_URL || '';
+const getApiBase = () => {
+  if (process.env.NODE_ENV === 'production') {
+    return 'https://sylph611.com';
+  }
+  
+  // 개발 환경에서는 환경 변수나 기본값 사용
+  return process.env.REACT_APP_API_URL || 'http://127.0.0.1:8080';
+};
+
+const API_BASE = getApiBase();
 
 export const api = {
   login: async (email, password) => {
