@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronRight, Plus, Save, X, Star } from 'lucide-react';
+import { ChevronRight, Plus, Save, X, Star, Home, MapPin, Car, Train } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import Header from '../common/Header';
 
@@ -10,23 +10,67 @@ const AddProperty = () => {
     title: '',
     address: '',
     price: '',
-    date: new Date().toISOString().split('T')[0], // 오늘 날짜로 초기화
+    date: new Date().toISOString().split('T')[0],
     rating: 3,
     status: '검토중',
-    area: '',
-    floor: '',
+    images: 0,
+    
+    // 면적 관련
+    areaPyeong: '',
+    areaM2: '',
+    
+    // 공간 구성
+    roomCount: 1,
+    bathroomCount: 1,
+    
+    // 층수/방향
+    floorNumber: '',
+    totalFloors: '',
     direction: '',
-    parking: '',
-    maintenance: '',
-    pros: [''],
-    cons: [''],
-    memo: ''
+    
+    // 건물 정보
+    buildingType: '',
+    buildYear: '',
+    
+    // 비용 관련
+    maintenanceFee: '',
+    heatingType: '',
+    
+    // 편의시설
+    parkingAvailable: false,
+    elevatorAvailable: false,
+    
+    // 교통 관련
+    nearestStation: '',
+    walkingMinutes: '',
+    
+    // 장점/단점
+    advantages: [''],
+    disadvantages: [''],
+    
+    // 추가 상세 정보
+    details: {
+      options: [],
+      memo: '',
+      petAllowed: false,
+      shortTermRent: false
+    }
   });
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
+    }));
+  };
+
+  const handleDetailsChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      details: {
+        ...prev.details,
+        [field]: value
+      }
     }));
   };
 
@@ -62,7 +106,59 @@ const AddProperty = () => {
 
     setLoading(true);
     try {
-      await addProperty(formData);
+      // API 스펙에 맞는 데이터 구조로 변환
+      const dataToSave = {
+        title: formData.title.trim(),
+        address: formData.address.trim(),
+        price: formData.price.trim(),
+        date: formData.date || null,
+        rating: formData.rating,
+        status: formData.status,
+        images: formData.images,
+        
+        // 면적 관련
+        areaPyeong: formData.areaPyeong ? parseFloat(formData.areaPyeong) : null,
+        areaM2: formData.areaM2 ? parseFloat(formData.areaM2) : null,
+        
+        // 공간 구성
+        roomCount: parseInt(formData.roomCount) || 1,
+        bathroomCount: parseInt(formData.bathroomCount) || 1,
+        
+        // 층수/방향
+        floorNumber: formData.floorNumber ? parseInt(formData.floorNumber) : null,
+        totalFloors: formData.totalFloors ? parseInt(formData.totalFloors) : null,
+        direction: formData.direction?.trim() || null,
+        
+        // 건물 정보
+        buildingType: formData.buildingType?.trim() || null,
+        buildYear: formData.buildYear ? parseInt(formData.buildYear) : null,
+        
+        // 비용 관련
+        maintenanceFee: formData.maintenanceFee?.trim() || null,
+        heatingType: formData.heatingType?.trim() || null,
+        
+        // 편의시설
+        parkingAvailable: formData.parkingAvailable,
+        elevatorAvailable: formData.elevatorAvailable,
+        
+        // 교통 관련
+        nearestStation: formData.nearestStation?.trim() || null,
+        walkingMinutes: formData.walkingMinutes ? parseInt(formData.walkingMinutes) : null,
+        
+        // 장점/단점
+        advantages: formData.advantages.filter(item => item.trim() !== ''),
+        disadvantages: formData.disadvantages.filter(item => item.trim() !== ''),
+        
+        // 추가 상세 정보
+        details: {
+          options: formData.details.options,
+          memo: formData.details.memo?.trim() || null,
+          petAllowed: formData.details.petAllowed,
+          shortTermRent: formData.details.shortTermRent
+        }
+      };
+
+      await addProperty(dataToSave);
       setCurrentView('list');
     } catch (error) {
       alert('매물 기록 저장에 실패했습니다.');
@@ -177,28 +273,78 @@ const AddProperty = () => {
               {/* 상세 정보 */}
               <div className="space-y-6">
                 <div className="bg-white/5 rounded-2xl p-6">
-                  <h3 className="text-xl font-semibold text-white mb-4">상세 정보</h3>
+                  <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+                    <Home className="w-5 h-5 mr-2" />
+                    상세 정보
+                  </h3>
                   <div className="space-y-4">
-                    <div>
-                      <label className="block text-white/80 text-sm mb-2">면적</label>
-                      <input
-                        type="text"
-                        value={formData.area}
-                        onChange={(e) => handleInputChange('area', e.target.value)}
-                        className="input-glass"
-                        placeholder="예: 84㎡ (25.4평)"
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">면적 (평)</label>
+                        <input
+                          type="text"
+                          value={formData.areaPyeong}
+                          onChange={(e) => handleInputChange('areaPyeong', e.target.value)}
+                          className="input-glass"
+                          placeholder="예: 25.5"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">면적 (m²)</label>
+                        <input
+                          type="text"
+                          value={formData.areaM2}
+                          onChange={(e) => handleInputChange('areaM2', e.target.value)}
+                          className="input-glass"
+                          placeholder="예: 84.3"
+                        />
+                      </div>
                     </div>
                     
-                    <div>
-                      <label className="block text-white/80 text-sm mb-2">층수</label>
-                      <input
-                        type="text"
-                        value={formData.floor}
-                        onChange={(e) => handleInputChange('floor', e.target.value)}
-                        className="input-glass"
-                        placeholder="예: 15층 / 20층"
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">방 개수</label>
+                        <input
+                          type="number"
+                          value={formData.roomCount}
+                          onChange={(e) => handleInputChange('roomCount', e.target.value)}
+                          className="input-glass"
+                          min="1"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">화장실 개수</label>
+                        <input
+                          type="number"
+                          value={formData.bathroomCount}
+                          onChange={(e) => handleInputChange('bathroomCount', e.target.value)}
+                          className="input-glass"
+                          min="1"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">해당 층수</label>
+                        <input
+                          type="text"
+                          value={formData.floorNumber}
+                          onChange={(e) => handleInputChange('floorNumber', e.target.value)}
+                          className="input-glass"
+                          placeholder="예: 15"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">전체 층수</label>
+                        <input
+                          type="text"
+                          value={formData.totalFloors}
+                          onChange={(e) => handleInputChange('totalFloors', e.target.value)}
+                          className="input-glass"
+                          placeholder="예: 25"
+                        />
+                      </div>
                     </div>
                     
                     <div>
@@ -208,30 +354,119 @@ const AddProperty = () => {
                         value={formData.direction}
                         onChange={(e) => handleInputChange('direction', e.target.value)}
                         className="input-glass"
-                        placeholder="예: 남향"
+                        placeholder="예: 남동향"
                       />
                     </div>
                     
-                    <div>
-                      <label className="block text-white/80 text-sm mb-2">주차</label>
-                      <input
-                        type="text"
-                        value={formData.parking}
-                        onChange={(e) => handleInputChange('parking', e.target.value)}
-                        className="input-glass"
-                        placeholder="예: 1대"
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">건물 유형</label>
+                        <input
+                          type="text"
+                          value={formData.buildingType}
+                          onChange={(e) => handleInputChange('buildingType', e.target.value)}
+                          className="input-glass"
+                          placeholder="예: 오피스텔"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">건축 연도</label>
+                        <input
+                          type="text"
+                          value={formData.buildYear}
+                          onChange={(e) => handleInputChange('buildYear', e.target.value)}
+                          className="input-glass"
+                          placeholder="예: 2018"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 비용 및 편의시설 */}
+                <div className="bg-white/5 rounded-2xl p-6">
+                  <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+                    <Car className="w-5 h-5 mr-2" />
+                    비용 및 편의시설
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">관리비</label>
+                        <input
+                          type="text"
+                          value={formData.maintenanceFee}
+                          onChange={(e) => handleInputChange('maintenanceFee', e.target.value)}
+                          className="input-glass"
+                          placeholder="예: 12만원"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">난방 방식</label>
+                        <input
+                          type="text"
+                          value={formData.heatingType}
+                          onChange={(e) => handleInputChange('heatingType', e.target.value)}
+                          className="input-glass"
+                          placeholder="예: 개별난방"
+                        />
+                      </div>
                     </div>
                     
-                    <div>
-                      <label className="block text-white/80 text-sm mb-2">관리비</label>
-                      <input
-                        type="text"
-                        value={formData.maintenance}
-                        onChange={(e) => handleInputChange('maintenance', e.target.value)}
-                        className="input-glass"
-                        placeholder="예: 15만원"
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          id="parkingAvailable"
+                          checked={formData.parkingAvailable}
+                          onChange={(e) => handleInputChange('parkingAvailable', e.target.checked)}
+                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <label htmlFor="parkingAvailable" className="text-white/80 text-sm">주차 가능</label>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          id="elevatorAvailable"
+                          checked={formData.elevatorAvailable}
+                          onChange={(e) => handleInputChange('elevatorAvailable', e.target.checked)}
+                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <label htmlFor="elevatorAvailable" className="text-white/80 text-sm">엘리베이터 있음</label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 교통 정보 */}
+                <div className="bg-white/5 rounded-2xl p-6">
+                  <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+                    <Train className="w-5 h-5 mr-2" />
+                    교통 정보
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">가장 가까운 역</label>
+                        <input
+                          type="text"
+                          value={formData.nearestStation}
+                          onChange={(e) => handleInputChange('nearestStation', e.target.value)}
+                          className="input-glass"
+                          placeholder="예: 강남역"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">도보 거리 (분)</label>
+                        <input
+                          type="number"
+                          value={formData.walkingMinutes}
+                          onChange={(e) => handleInputChange('walkingMinutes', e.target.value)}
+                          className="input-glass"
+                          placeholder="예: 5"
+                          min="1"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -244,7 +479,7 @@ const AddProperty = () => {
                 <h3 className="text-xl font-semibold text-white">장점</h3>
                 <button
                   type="button"
-                  onClick={() => addArrayItem('pros')}
+                  onClick={() => addArrayItem('advantages')}
                   className="bg-green-500/20 hover:bg-green-500/30 text-green-300 px-3 py-1 rounded-lg text-sm transition-all"
                 >
                   <Plus className="w-4 h-4 inline mr-1" />
@@ -252,20 +487,20 @@ const AddProperty = () => {
                 </button>
               </div>
               <div className="space-y-3">
-                {formData.pros.map((pro, index) => (
+                {formData.advantages.map((pro, index) => (
                   <div key={index} className="flex items-center space-x-2">
                     <span className="text-green-400">✓</span>
                     <input
                       type="text"
                       value={pro}
-                      onChange={(e) => handleArrayChange('pros', index, e.target.value)}
+                      onChange={(e) => handleArrayChange('advantages', index, e.target.value)}
                       className="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400"
                       placeholder="장점을 입력하세요"
                     />
-                    {formData.pros.length > 1 && (
+                    {formData.advantages.length > 1 && (
                       <button
                         type="button"
-                        onClick={() => removeArrayItem('pros', index)}
+                        onClick={() => removeArrayItem('advantages', index)}
                         className="text-red-400 hover:text-red-300 p-1"
                       >
                         <X className="w-4 h-4" />
@@ -282,7 +517,7 @@ const AddProperty = () => {
                 <h3 className="text-xl font-semibold text-white">단점</h3>
                 <button
                   type="button"
-                  onClick={() => addArrayItem('cons')}
+                  onClick={() => addArrayItem('disadvantages')}
                   className="bg-red-500/20 hover:bg-red-500/30 text-red-300 px-3 py-1 rounded-lg text-sm transition-all"
                 >
                   <Plus className="w-4 h-4 inline mr-1" />
@@ -290,20 +525,20 @@ const AddProperty = () => {
                 </button>
               </div>
               <div className="space-y-3">
-                {formData.cons.map((con, index) => (
+                {formData.disadvantages.map((con, index) => (
                   <div key={index} className="flex items-center space-x-2">
                     <span className="text-red-400">✗</span>
                     <input
                       type="text"
                       value={con}
-                      onChange={(e) => handleArrayChange('cons', index, e.target.value)}
+                      onChange={(e) => handleArrayChange('disadvantages', index, e.target.value)}
                       className="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400"
                       placeholder="단점을 입력하세요"
                     />
-                    {formData.cons.length > 1 && (
+                    {formData.disadvantages.length > 1 && (
                       <button
                         type="button"
-                        onClick={() => removeArrayItem('cons', index)}
+                        onClick={() => removeArrayItem('disadvantages', index)}
                         className="text-red-400 hover:text-red-300 p-1"
                       >
                         <X className="w-4 h-4" />
@@ -318,8 +553,8 @@ const AddProperty = () => {
             <div className="mt-6 bg-white/5 rounded-2xl p-6">
               <h3 className="text-xl font-semibold text-white mb-4">메모</h3>
               <textarea
-                value={formData.memo}
-                onChange={(e) => handleInputChange('memo', e.target.value)}
+                value={formData.details.memo}
+                onChange={(e) => handleDetailsChange('memo', e.target.value)}
                 rows={4}
                 className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
                 placeholder="매물 시 느낀 점이나 추가 정보를 자유롭게 작성하세요"

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, MapPin, Calendar, Star, Edit, Trash2, Home } from 'lucide-react';
+import { ChevronRight, MapPin, Calendar, Star, Edit, Trash2, Home, Car, Train, Plus } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import Header from '../common/Header';
 import { api } from '../../services/mockAPI';
 
 const PropertyDetail = () => {
-  const { selectedProperty, propertyDetails, setCurrentView, fetchPropertyDetail, token } = useApp();
+  const { selectedProperty, propertyDetails, setCurrentView, fetchPropertyDetail, fetchPropertyList, setSelectedProperty, setPropertyDetails, token } = useApp();
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState(null);
@@ -36,14 +36,48 @@ const PropertyDetail = () => {
         date: propertyDetails.date || '',
         rating: propertyDetails.rating || 3,
         status: propertyDetails.status || '검토중',
-        area: propertyDetails.details?.area || '',
-        floor: propertyDetails.details?.floor || '',
-        direction: propertyDetails.details?.direction || '',
-        parking: propertyDetails.details?.parking || '',
-        maintenance: propertyDetails.details?.maintenance || '',
-        pros: propertyDetails.advantages ? [...propertyDetails.advantages] : [''],
-        cons: propertyDetails.disadvantages ? [...propertyDetails.disadvantages] : [''],
-        memo: propertyDetails.details?.memo || ''
+        images: propertyDetails.images || 0,
+        
+        // 면적 관련
+        areaPyeong: propertyDetails.areaPyeong || '',
+        areaM2: propertyDetails.areaM2 || '',
+        
+        // 공간 구성
+        roomCount: propertyDetails.roomCount || 1,
+        bathroomCount: propertyDetails.bathroomCount || 1,
+        
+        // 층수/방향
+        floorNumber: propertyDetails.floorNumber || '',
+        totalFloors: propertyDetails.totalFloors || '',
+        direction: propertyDetails.direction || '',
+        
+        // 건물 정보
+        buildingType: propertyDetails.buildingType || '',
+        buildYear: propertyDetails.buildYear || '',
+        
+        // 비용 관련
+        maintenanceFee: propertyDetails.maintenanceFee || '',
+        heatingType: propertyDetails.heatingType || '',
+        
+        // 편의시설
+        parkingAvailable: propertyDetails.parkingAvailable || false,
+        elevatorAvailable: propertyDetails.elevatorAvailable || false,
+        
+        // 교통 관련
+        nearestStation: propertyDetails.nearestStation || '',
+        walkingMinutes: propertyDetails.walkingMinutes || '',
+        
+        // 장점/단점
+        advantages: (propertyDetails.advantages && propertyDetails.advantages.length > 0) ? [...propertyDetails.advantages] : [''],
+        disadvantages: (propertyDetails.disadvantages && propertyDetails.disadvantages.length > 0) ? [...propertyDetails.disadvantages] : [''],
+        
+        // 추가 상세 정보
+        details: propertyDetails.details || {
+          options: [],
+          memo: '',
+          petAllowed: false,
+          shortTermRent: false
+        }
       });
     }
   }, [propertyDetails]);
@@ -99,10 +133,28 @@ const PropertyDetail = () => {
   const handleDelete = async () => {
     if (!window.confirm("정말 삭제하시겠습니까?")) return;
     try {
+      console.log('Deleting property:', detail.id); // 디버깅용
       await api.deleteProperty(detail.id, token);
+      console.log('Property deleted successfully'); // 디버깅용
+      
+      // 즉시 목록으로 이동
       setCurrentView('list');
+      
+      // 목록 갱신 및 상태 초기화
+      setTimeout(async () => {
+        try {
+          await fetchPropertyList();
+          setSelectedProperty(null);
+          setPropertyDetails(null);
+          console.log('Property list refreshed after deletion'); // 디버깅용
+        } catch (error) {
+          console.error('Failed to refresh property list:', error);
+        }
+      }, 100);
+      
     } catch (e) {
-      setError("삭제 실패");
+      console.error('Delete error:', e); // 디버깅용
+      setError("삭제 실패: " + e.message);
     }
   };
 
@@ -110,6 +162,17 @@ const PropertyDetail = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // details 객체 변경 핸들러
+  const handleDetailsChange = (field, value) => {
+    setForm((prev) => ({
+      ...prev,
+      details: {
+        ...prev.details,
+        [field]: value
+      }
+    }));
   };
 
   // pros/cons 배열 입력 핸들러
@@ -134,30 +197,87 @@ const PropertyDetail = () => {
       setError('제목, 주소, 가격은 필수 입력 항목입니다.');
       return;
     }
+    
+    // 데이터 타입 변환 및 유효성 검사
     const dataToSave = {
-      title: form.title,
-      address: form.address,
-      price: form.price,
-      date: form.date,
-      rating: form.rating,
+      title: form.title.trim(),
+      address: form.address.trim(),
+      price: form.price.trim(), // 문자열로 유지
+      date: form.date || null,
+      rating: form.rating.toString(), // 문자열로 변환
       status: form.status,
-      advantages: form.pros.filter(item => item.trim() !== ''),
-      disadvantages: form.cons.filter(item => item.trim() !== ''),
+      images: form.images,
+      
+      // 면적 관련
+      areaPyeong: form.areaPyeong ? parseFloat(form.areaPyeong) : null,
+      areaM2: form.areaM2 ? parseFloat(form.areaM2) : null,
+      
+      // 공간 구성
+      roomCount: parseInt(form.roomCount) || 1,
+      bathroomCount: parseInt(form.bathroomCount) || 1,
+      
+      // 층수/방향
+      floorNumber: form.floorNumber ? parseInt(form.floorNumber) : null,
+      totalFloors: form.totalFloors ? parseInt(form.totalFloors) : null,
+      direction: form.direction?.trim() || null,
+      
+      // 건물 정보
+      buildingType: form.buildingType?.trim() || null,
+      buildYear: form.buildYear ? parseInt(form.buildYear) : null,
+      
+      // 비용 관련
+      maintenanceFee: form.maintenanceFee?.trim() || null,
+      heatingType: form.heatingType?.trim() || null,
+      
+      // 편의시설
+      parkingAvailable: form.parkingAvailable,
+      elevatorAvailable: form.elevatorAvailable,
+      
+      // 교통 관련
+      nearestStation: form.nearestStation?.trim() || null,
+      walkingMinutes: form.walkingMinutes ? parseInt(form.walkingMinutes) : null,
+      
+      // 장점/단점
+      advantages: form.advantages.filter(item => item.trim() !== ''),
+      disadvantages: form.disadvantages.filter(item => item.trim() !== ''),
+      
+      // 추가 상세 정보
       details: {
-        area: form.area,
-        floor: form.floor,
-        direction: form.direction,
-        parking: form.parking,
-        maintenance: form.maintenance,
-        memo: form.memo
+        options: form.details.options || [],
+        memo: form.details.memo?.trim() || null,
+        petAllowed: form.details.petAllowed || false,
+        shortTermRent: form.details.shortTermRent || false
       }
     };
+
+    // 필수 필드 재검증
+    if (!dataToSave.price) {
+      setError('가격을 입력해주세요.');
+      return;
+    }
+
     try {
+      console.log('Sending data:', dataToSave); // 디버깅용
       await api.updateProperty(detail.id, dataToSave, token);
       await fetchPropertyDetail(detail.id);
+      await fetchPropertyList(); // 목록도 갱신
       setIsEditing(false);
     } catch (e) {
-      setError("수정 실패");
+      console.error('Update error:', e); // 디버깅용
+      setError("수정 실패: " + e.message);
+    }
+  };
+
+  // 목록으로 돌아가기 핸들러
+  const handleBackToList = async () => {
+    try {
+      console.log('Refreshing property list...'); // 디버깅용
+      await fetchPropertyList(); // 매물 목록 재조회
+      console.log('Property list refreshed'); // 디버깅용
+    } catch (error) {
+      console.error('Failed to fetch property list:', error);
+    } finally {
+      setCurrentView('list'); // 항상 목록으로 이동
     }
   };
 
@@ -166,7 +286,7 @@ const PropertyDetail = () => {
       <Header />
       <div className="max-w-4xl mx-auto px-4 py-8">
         <button
-          onClick={() => setCurrentView('list')}
+          onClick={handleBackToList}
           className="btn-secondary mb-6 flex items-center space-x-2"
         >
           <ChevronRight className="w-4 h-4 rotate-180" />
@@ -212,163 +332,364 @@ const PropertyDetail = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                 <div className="space-y-6">
                   <div className="bg-white/5 rounded-2xl p-6">
-                    <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
-                      <Home className="w-5 h-5 mr-2" />
-                      기본 정보
-                    </h3>
-                    <div className="space-y-3 text-white/80">
-                      <div className="flex justify-between items-center">
-                        <span>가격</span>
+                    <h3 className="text-xl font-semibold text-white mb-4">기본 정보</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">가격</label>
                         <input
                           name="price"
                           value={form.price}
                           onChange={handleChange}
-                          className="input-glass text-right text-white w-60"
+                          className="input-glass"
+                          placeholder="예: 5억 2천"
                         />
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span>면적</span>
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">매물일</label>
                         <input
-                          name="area"
-                          value={form.area}
+                          name="date"
+                          type="date"
+                          value={form.date}
                           onChange={handleChange}
-                          className="input-glass text-right text-white w-60"
+                          className="input-glass"
                         />
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span>층수</span>
-                        <input
-                          name="floor"
-                          value={form.floor}
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">상태</label>
+                        <select
+                          name="status"
+                          value={form.status}
                           onChange={handleChange}
-                          className="input-glass text-right text-white w-60"
-                        />
+                          className="input-glass"
+                        >
+                          <option value="관심">관심</option>
+                          <option value="검토중">검토중</option>
+                          <option value="보류">보류</option>
+                        </select>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span>방향</span>
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">평가</label>
+                        <div className="flex items-center space-x-2">
+                          {[1, 2, 3, 4, 5].map((rating) => (
+                            <button
+                              key={rating}
+                              type="button"
+                              onClick={() => setForm((prev) => ({ ...prev, rating }))}
+                              className="focus:outline-none"
+                            >
+                              <Star
+                                className={`w-8 h-8 ${rating <= form.rating ? 'text-yellow-400 fill-current' : 'text-gray-400'} hover:text-yellow-300 transition-colors`}
+                              />
+                            </button>
+                          ))}
+                          <span className="text-white ml-2">{form.rating}/5</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* 상세 정보 */}
+                <div className="space-y-6">
+                  <div className="bg-white/5 rounded-2xl p-6">
+                    <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+                      <Home className="w-5 h-5 mr-2" />
+                      상세 정보
+                    </h3>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-white/80 text-sm mb-2">면적 (평)</label>
+                          <input
+                            name="areaPyeong"
+                            value={form.areaPyeong}
+                            onChange={handleChange}
+                            className="input-glass"
+                            placeholder="예: 25.5"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-white/80 text-sm mb-2">면적 (m²)</label>
+                          <input
+                            name="areaM2"
+                            value={form.areaM2}
+                            onChange={handleChange}
+                            className="input-glass"
+                            placeholder="예: 84.3"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-white/80 text-sm mb-2">방 개수</label>
+                          <input
+                            name="roomCount"
+                            type="number"
+                            value={form.roomCount}
+                            onChange={handleChange}
+                            className="input-glass"
+                            min="1"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-white/80 text-sm mb-2">화장실 개수</label>
+                          <input
+                            name="bathroomCount"
+                            type="number"
+                            value={form.bathroomCount}
+                            onChange={handleChange}
+                            className="input-glass"
+                            min="1"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-white/80 text-sm mb-2">해당 층수</label>
+                          <input
+                            name="floorNumber"
+                            value={form.floorNumber}
+                            onChange={handleChange}
+                            className="input-glass"
+                            placeholder="예: 15"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-white/80 text-sm mb-2">전체 층수</label>
+                          <input
+                            name="totalFloors"
+                            value={form.totalFloors}
+                            onChange={handleChange}
+                            className="input-glass"
+                            placeholder="예: 25"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">방향</label>
                         <input
                           name="direction"
                           value={form.direction}
                           onChange={handleChange}
-                          className="input-glass text-right text-white w-60"
+                          className="input-glass"
+                          placeholder="예: 남동향"
                         />
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span>주차</span>
-                        <input
-                          name="parking"
-                          value={form.parking}
-                          onChange={handleChange}
-                          className="input-glass text-right text-white w-60"
-                        />
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span>관리비</span>
-                        <input
-                          name="maintenance"
-                          value={form.maintenance}
-                          onChange={handleChange}
-                          className="input-glass text-right text-white w-60"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-white/5 rounded-2xl p-6">
-                    <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
-                      <Star className="w-5 h-5 mr-2" />
-                      평가
-                    </h3>
-                    <div className="flex items-center mb-4">
-                      {[1,2,3,4,5].map((rating) => (
-                        <button
-                          key={rating}
-                          type="button"
-                          onClick={() => setForm((prev) => ({ ...prev, rating }))}
-                          className="focus:outline-none"
-                        >
-                          <Star
-                            className={`w-6 h-6 ${rating <= form.rating ? 'text-yellow-400 fill-current' : 'text-gray-400'} hover:text-yellow-300 transition-colors`}
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-white/80 text-sm mb-2">건물 유형</label>
+                          <input
+                            name="buildingType"
+                            value={form.buildingType}
+                            onChange={handleChange}
+                            className="input-glass"
+                            placeholder="예: 오피스텔"
                           />
-                        </button>
-                      ))}
-                      <span className="ml-2 text-white font-semibold">{form.rating}/5</span>
-                    </div>
-                    <div className="flex items-center text-white/70 text-sm">
-                      <Calendar className="w-4 h-4 mr-2" />
-                      <input
-                        name="date"
-                        type="date"
-                        value={form.date}
-                        onChange={handleChange}
-                        className="bg-transparent border-b border-white/30 focus:outline-none focus:border-blue-400 text-white"
-                      />
+                        </div>
+                        <div>
+                          <label className="block text-white/80 text-sm mb-2">건축 연도</label>
+                          <input
+                            name="buildYear"
+                            value={form.buildYear}
+                            onChange={handleChange}
+                            className="input-glass"
+                            placeholder="예: 2018"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div className="space-y-6">
-                  <div className="bg-white/5 rounded-2xl p-6">
-                    <h3 className="text-xl font-semibold text-white mb-4">장점</h3>
-                    {form.pros && form.pros.length > 0 && (
+              </div>
+
+              {/* 비용 및 편의시설 */}
+              <div className="mb-8">
+                <div className="bg-white/5 rounded-2xl p-6">
+                  <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+                    <Car className="w-5 h-5 mr-2" />
+                    비용 및 편의시설
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">관리비</label>
+                        <input
+                          name="maintenanceFee"
+                          value={form.maintenanceFee}
+                          onChange={handleChange}
+                          className="input-glass"
+                          placeholder="예: 12만원"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">난방 방식</label>
+                        <input
+                          name="heatingType"
+                          value={form.heatingType}
+                          onChange={handleChange}
+                          className="input-glass"
+                          placeholder="예: 개별난방"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          name="parkingAvailable"
+                          checked={form.parkingAvailable}
+                          onChange={(e) => handleChange({ target: { name: 'parkingAvailable', value: e.target.checked } })}
+                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <label className="text-white/80 text-sm">주차 가능</label>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          name="elevatorAvailable"
+                          checked={form.elevatorAvailable}
+                          onChange={(e) => handleChange({ target: { name: 'elevatorAvailable', value: e.target.checked } })}
+                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <label className="text-white/80 text-sm">엘리베이터 있음</label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 교통 정보 */}
+              <div className="mb-8">
+                <div className="bg-white/5 rounded-2xl p-6">
+                  <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+                    <Train className="w-5 h-5 mr-2" />
+                    교통 정보
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">가장 가까운 역</label>
+                        <input
+                          name="nearestStation"
+                          value={form.nearestStation}
+                          onChange={handleChange}
+                          className="input-glass"
+                          placeholder="예: 강남역"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">도보 거리 (분)</label>
+                        <input
+                          name="walkingMinutes"
+                          type="number"
+                          value={form.walkingMinutes}
+                          onChange={handleChange}
+                          className="input-glass"
+                          placeholder="예: 5"
+                          min="1"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 장점 */}
+              <div className="mb-8">
+                <div className="bg-white/5 rounded-2xl p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-semibold text-white">장점</h3>
+                    <button
+                      type="button"
+                      onClick={() => addArrayItem('advantages')}
+                      className="bg-green-500/20 hover:bg-green-500/30 text-green-300 px-3 py-1 rounded-lg text-sm transition-all"
+                    >
+                      <Plus className="w-4 h-4 inline mr-1" />
+                      추가
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    {form.advantages && form.advantages.length > 0 && (
                       <ul className="space-y-2">
-                        {form.pros.map((pro, idx) => (
+                        {form.advantages.map((pro, idx) => (
                           <li key={idx} className="flex items-center space-x-2">
                             <span className="text-green-400">✓</span>
                             <input
                               type="text"
                               value={pro}
-                              onChange={e => handleArrayChange('pros', idx, e.target.value)}
+                              onChange={e => handleArrayChange('advantages', idx, e.target.value)}
                               className="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400"
                               placeholder="장점을 입력하세요"
                             />
-                            {form.pros.length > 1 && (
-                              <button type="button" onClick={() => removeArrayItem('pros', idx)} className="text-red-400 hover:text-red-300 p-1">×</button>
+                            {form.advantages.length > 1 && (
+                              <button type="button" onClick={() => removeArrayItem('advantages', idx)} className="text-red-400 hover:text-red-300 p-1">×</button>
                             )}
                           </li>
                         ))}
-                        <li>
-                          <button type="button" onClick={() => addArrayItem('pros')} className="bg-green-500/20 hover:bg-green-500/30 text-green-300 px-3 py-1 rounded-lg text-sm transition-all">추가</button>
-                        </li>
-                      </ul>
-                    )}
-                  </div>
-                  <div className="bg-white/5 rounded-2xl p-6">
-                    <h3 className="text-xl font-semibold text-white mb-4">단점</h3>
-                    {form.cons && form.cons.length > 0 && (
-                      <ul className="space-y-2">
-                        {form.cons.map((con, idx) => (
-                          <li key={idx} className="flex items-center space-x-2">
-                            <span className="text-red-400">✗</span>
-                            <input
-                              type="text"
-                              value={con}
-                              onChange={e => handleArrayChange('cons', idx, e.target.value)}
-                              className="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                              placeholder="단점을 입력하세요"
-                            />
-                            {form.cons.length > 1 && (
-                              <button type="button" onClick={() => removeArrayItem('cons', idx)} className="text-red-400 hover:text-red-300 p-1">×</button>
-                            )}
-                          </li>
-                        ))}
-                        <li>
-                          <button type="button" onClick={() => addArrayItem('cons')} className="bg-red-500/20 hover:bg-red-500/30 text-red-300 px-3 py-1 rounded-lg text-sm transition-all">추가</button>
-                        </li>
                       </ul>
                     )}
                   </div>
                 </div>
               </div>
-              <div className="bg-white/5 rounded-2xl p-6">
-                <h3 className="text-xl font-semibold text-white mb-4">메모</h3>
-                <textarea
-                  name="memo"
-                  value={form.memo}
-                  onChange={handleChange}
-                  rows={4}
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
-                  placeholder="매물 시 느낀 점이나 추가 정보를 자유롭게 작성하세요"
-                />
+
+              {/* 단점 */}
+              <div className="mb-8">
+                <div className="bg-white/5 rounded-2xl p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-semibold text-white">단점</h3>
+                    <button
+                      type="button"
+                      onClick={() => addArrayItem('disadvantages')}
+                      className="bg-red-500/20 hover:bg-red-500/30 text-red-300 px-3 py-1 rounded-lg text-sm transition-all"
+                    >
+                      <Plus className="w-4 h-4 inline mr-1" />
+                      추가
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    {form.disadvantages && form.disadvantages.length > 0 && (
+                      <ul className="space-y-2">
+                        {form.disadvantages.map((con, idx) => (
+                          <li key={idx} className="flex items-center space-x-2">
+                            <span className="text-red-400">✗</span>
+                            <input
+                              type="text"
+                              value={con}
+                              onChange={e => handleArrayChange('disadvantages', idx, e.target.value)}
+                              className="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                              placeholder="단점을 입력하세요"
+                            />
+                            {form.disadvantages.length > 1 && (
+                              <button type="button" onClick={() => removeArrayItem('disadvantages', idx)} className="text-red-400 hover:text-red-300 p-1">×</button>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
               </div>
+
+              {/* 메모 */}
+              <div className="mb-8">
+                <div className="bg-white/5 rounded-2xl p-6">
+                  <h3 className="text-xl font-semibold text-white mb-4">메모</h3>
+                  <textarea
+                    name="memo"
+                    value={form.details.memo}
+                    onChange={(e) => handleDetailsChange('memo', e.target.value)}
+                    rows={4}
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                    placeholder="매물 시 느낀 점이나 추가 정보를 자유롭게 작성하세요"
+                  />
+                </div>
+              </div>
+
               <div className="flex justify-end space-x-4 mt-8">
                 <button
                   type="button"
@@ -399,109 +720,201 @@ const PropertyDetail = () => {
                   {detail.status}
                 </span>
               </div>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                <div className="space-y-6">
+                  {/* 기본 정보 */}
+                  <div className="bg-white/5 rounded-2xl p-6">
+                    <h3 className="text-xl font-semibold text-white mb-4">기본 정보</h3>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-white/80">가격</span>
+                        <span className="font-semibold text-white">{detail.price || '-'}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-white/80">매물일</span>
+                        <span className="text-white">{detail.date || '-'}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-white/80">평가</span>
+                        <div className="flex items-center space-x-2">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`w-6 h-6 ${i < detail.rating ? 'text-yellow-400 fill-current' : 'text-gray-400'}`}
+                            />
+                          ))}
+                          <span className="text-white font-semibold">{detail.rating}/5</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* 상세 정보 */}
                 <div className="space-y-6">
                   <div className="bg-white/5 rounded-2xl p-6">
                     <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
                       <Home className="w-5 h-5 mr-2" />
-                      기본 정보
+                      상세 정보
                     </h3>
-                    <div className="space-y-3 text-white/80">
-                      <div className="flex justify-between">
-                        <span>가격</span>
-                        <span className="font-semibold text-white">{detail.price}</span>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-white/80">면적 (평)</span>
+                          <span className="text-white">{detail.areaPyeong || '-'}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-white/80">면적 (m²)</span>
+                          <span className="text-white">{detail.areaM2 || '-'}</span>
+                        </div>
                       </div>
-                      {detail.details?.area && (
-                        <div className="flex justify-between">
-                          <span>면적</span>
-                          <span>{detail.details.area}</span>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-white/80">방 개수</span>
+                          <span className="text-white">{detail.roomCount || '-'}</span>
                         </div>
-                      )}
-                      {detail.details?.floor && (
-                        <div className="flex justify-between">
-                          <span>층수</span>
-                          <span>{detail.details.floor}</span>
+                        <div className="flex justify-between items-center">
+                          <span className="text-white/80">화장실 개수</span>
+                          <span className="text-white">{detail.bathroomCount || '-'}</span>
                         </div>
-                      )}
-                      {detail.details?.direction && (
-                        <div className="flex justify-between">
-                          <span>방향</span>
-                          <span>{detail.details.direction}</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-white/80">해당 층수</span>
+                          <span className="text-white">{detail.floorNumber || '-'}</span>
                         </div>
-                      )}
-                      {detail.details?.parking && (
-                        <div className="flex justify-between">
-                          <span>주차</span>
-                          <span>{detail.details.parking}</span>
+                        <div className="flex justify-between items-center">
+                          <span className="text-white/80">전체 층수</span>
+                          <span className="text-white">{detail.totalFloors || '-'}</span>
                         </div>
-                      )}
-                      {detail.details?.maintenance && (
-                        <div className="flex justify-between">
-                          <span>관리비</span>
-                          <span>{detail.details.maintenance}</span>
+                      </div>
+                      
+                      <div className="flex justify-between items-center">
+                        <span className="text-white/80">방향</span>
+                        <span className="text-white">{detail.direction || '-'}</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-white/80">건물 유형</span>
+                          <span className="text-white">{detail.buildingType || '-'}</span>
                         </div>
-                      )}
+                        <div className="flex justify-between items-center">
+                          <span className="text-white/80">건축 연도</span>
+                          <span className="text-white">{detail.buildYear || '-'}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="bg-white/5 rounded-2xl p-6">
-                    <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
-                      <Star className="w-5 h-5 mr-2" />
-                      평가
-                    </h3>
-                    <div className="flex items-center mb-4">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-6 h-6 ${i < detail.rating ? 'text-yellow-400 fill-current' : 'text-gray-400'}`}
-                        />
+                </div>
+              </div>
+
+              {/* 비용 및 편의시설 */}
+              <div className="mb-8">
+                <div className="bg-white/5 rounded-2xl p-6">
+                  <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+                    <Car className="w-5 h-5 mr-2" />
+                    비용 및 편의시설
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-white/80">관리비</span>
+                        <span className="text-white">{detail.maintenanceFee || '-'}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-white/80">난방 방식</span>
+                        <span className="text-white">{detail.heatingType || '-'}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-white/80">주차 가능</span>
+                        <span className="text-white">{detail.parkingAvailable ? '예' : '아니오'}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-white/80">엘리베이터</span>
+                        <span className="text-white">{detail.elevatorAvailable ? '있음' : '없음'}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 교통 정보 */}
+              <div className="mb-8">
+                <div className="bg-white/5 rounded-2xl p-6">
+                  <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+                    <Train className="w-5 h-5 mr-2" />
+                    교통 정보
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-white/80">가장 가까운 역</span>
+                        <span className="text-white">{detail.nearestStation || '-'}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-white/80">도보 거리</span>
+                        <span className="text-white">{detail.walkingMinutes ? `${detail.walkingMinutes}분` : '-'}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 장점 */}
+              <div className="mb-8">
+                <div className="bg-white/5 rounded-2xl p-6">
+                  <h3 className="text-xl font-semibold text-white mb-4">장점</h3>
+                  {detail.advantages && detail.advantages.length > 0 ? (
+                    <ul className="space-y-2">
+                      {detail.advantages.map((pro, index) => (
+                        <li key={index} className="text-green-300 flex items-start">
+                          <span className="text-green-400 mr-2">✓</span>
+                          {pro}
+                        </li>
                       ))}
-                      <span className="ml-2 text-white font-semibold">{detail.rating}/5</span>
-                    </div>
-                    <div className="flex items-center text-white/70 text-sm">
-                      <Calendar className="w-4 h-4 mr-2" />
-                      <span>매물일: {detail.date}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-6">
-                  <div className="bg-white/5 rounded-2xl p-6">
-                    <h3 className="text-xl font-semibold text-white mb-4">장점</h3>
-                    {detail.advantages && detail.advantages.length > 0 ? (
-                      <ul className="space-y-2">
-                        {detail.advantages.map((pro, index) => (
-                          <li key={index} className="text-green-300 flex items-start">
-                            <span className="text-green-400 mr-2">✓</span>
-                            {pro}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-white/50">등록된 장점이 없습니다.</p>
-                    )}
-                  </div>
-                  <div className="bg-white/5 rounded-2xl p-6">
-                    <h3 className="text-xl font-semibold text-white mb-4">단점</h3>
-                    {detail.disadvantages && detail.disadvantages.length > 0 ? (
-                      <ul className="space-y-2">
-                        {detail.disadvantages.map((con, index) => (
-                          <li key={index} className="text-red-300 flex items-start">
-                            <span className="text-red-400 mr-2">✗</span>
-                            {con}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-white/50">등록된 단점이 없습니다.</p>
-                    )}
-                  </div>
+                    </ul>
+                  ) : (
+                    <p className="text-white/50">등록된 장점이 없습니다.</p>
+                  )}
                 </div>
               </div>
-              <div className="bg-white/5 rounded-2xl p-6">
-                <h3 className="text-xl font-semibold text-white mb-4">메모</h3>
-                <p className="text-white/80 leading-relaxed">
-                  {detail.details?.memo || '등록된 메모가 없습니다.'}
-                </p>
+
+              {/* 단점 */}
+              <div className="mb-8">
+                <div className="bg-white/5 rounded-2xl p-6">
+                  <h3 className="text-xl font-semibold text-white mb-4">단점</h3>
+                  {detail.disadvantages && detail.disadvantages.length > 0 ? (
+                    <ul className="space-y-2">
+                      {detail.disadvantages.map((con, index) => (
+                        <li key={index} className="text-red-300 flex items-start">
+                          <span className="text-red-400 mr-2">✗</span>
+                          {con}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-white/50">등록된 단점이 없습니다.</p>
+                  )}
+                </div>
               </div>
+
+              {/* 메모 */}
+              <div className="mb-8">
+                <div className="bg-white/5 rounded-2xl p-6">
+                  <h3 className="text-xl font-semibold text-white mb-4">메모</h3>
+                  <p className="text-white/80 leading-relaxed">
+                    {detail.details?.memo || '등록된 메모가 없습니다.'}
+                  </p>
+                </div>
+              </div>
+
               <div className="flex justify-end space-x-4 mt-8">
                 <button
                   className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 px-6 py-3 rounded-xl transition-all flex items-center space-x-2 border border-blue-500/30"
