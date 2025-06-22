@@ -56,7 +56,7 @@ export const AppProvider = ({ children }) => {
       const list = await api.getPropertyList(authToken);
       setPropertyList(list);
     } catch (error) {
-      console.error('Failed to fetch property list:', error);
+      // console.error('Failed to fetch property list:', error);
     }
   }, [token]);
 
@@ -65,65 +65,19 @@ export const AppProvider = ({ children }) => {
       const detail = await api.getPropertyDetail(id, token);
       setPropertyDetails(detail);
     } catch (error) {
-      console.error('Failed to fetch property detail:', error);
+      // console.error('Failed to fetch property detail:', error);
       throw error;
     }
   }, [token]);
 
   const addProperty = useCallback(async (propertyData) => {
     try {
-      // API 스펙에 맞는 데이터 구조로 변환
-      const dataToSave = {
-        title: propertyData.title,
-        address: propertyData.address,
-        price: propertyData.price,
-        date: propertyData.date,
-        rating: propertyData.rating,
-        status: propertyData.status,
-        images: propertyData.images,
-        
-        // 면적 관련
-        areaPyeong: propertyData.areaPyeong,
-        areaM2: propertyData.areaM2,
-        
-        // 공간 구성
-        roomCount: propertyData.roomCount,
-        bathroomCount: propertyData.bathroomCount,
-        
-        // 층수/방향
-        floorNumber: propertyData.floorNumber,
-        totalFloors: propertyData.totalFloors,
-        direction: propertyData.direction,
-        
-        // 건물 정보
-        buildingType: propertyData.buildingType,
-        buildYear: propertyData.buildYear,
-        
-        // 비용 관련
-        maintenanceFee: propertyData.maintenanceFee,
-        heatingType: propertyData.heatingType,
-        
-        // 편의시설
-        parkingAvailable: propertyData.parkingAvailable,
-        elevatorAvailable: propertyData.elevatorAvailable,
-        
-        // 교통 관련
-        nearestStation: propertyData.nearestStation,
-        walkingMinutes: propertyData.walkingMinutes,
-        
-        // 장점/단점
-        advantages: propertyData.advantages,
-        disadvantages: propertyData.disadvantages,
-        
-        // 추가 상세 정보
-        details: propertyData.details
-      };
-      
-      const newProperty = await api.createProperty(dataToSave, token);
+      // createProperty를 addProperty로 수정하고, 불필요한 데이터 재구성 로직 제거
+      const newProperty = await api.addProperty(propertyData, token);
       setPropertyList(prev => [newProperty, ...prev]);
       return newProperty;
     } catch (error) {
-      console.error('Failed to add property:', error);
+      // console.error('Failed to add property:', error);
       throw error;
     }
   }, [token]);
@@ -134,7 +88,7 @@ export const AppProvider = ({ children }) => {
       setPropertyList(prev => prev.map(p => p.id === id ? updatedProperty : p));
       setPropertyDetails(updatedProperty);
     } catch (error) {
-      console.error('Failed to update property:', error);
+      // console.error('Failed to update property:', error);
       throw error;
     }
   }, [token]);
@@ -146,7 +100,7 @@ export const AppProvider = ({ children }) => {
       setSelectedProperty(null);
       setCurrentView('list');
     } catch (error) {
-      console.error('Failed to delete property:', error);
+      // console.error('Failed to delete property:', error);
       throw error;
     }
   }, [token]);

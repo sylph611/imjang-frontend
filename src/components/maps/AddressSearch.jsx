@@ -19,9 +19,6 @@ const AddressSearch = ({
   const onChangeRef = useRef(onChange);
   const onLocationSelectRef = useRef(onLocationSelect);
   
-  // 디바운싱을 위한 타이머
-  const debounceTimerRef = useRef(null);
-  
   // 함수 업데이트
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -141,7 +138,7 @@ const AddressSearch = ({
 
         setIsLoading(false);
       } catch (err) {
-        console.error('Google Places API 로딩 실패:', err);
+        // console.error('Google Places API 로딩 실패:', err);
         if (err.message.includes('InvalidKeyMapError')) {
           setError('Google Maps API 키가 유효하지 않습니다. 올바른 API 키를 설정해주세요.');
         } else if (err.message.includes('LegacyApiNotActivatedMapError')) {
@@ -160,56 +157,23 @@ const AddressSearch = ({
     return () => {
       // cleanup: autocomplete 인스턴스 참조 제거
       autocompleteRef.current = null;
-      // 타이머 정리
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
     };
-  }, [disabled]); // onChange, onLocationSelect 제거
+  }, [disabled]);
 
   const handleInputChange = useCallback((e) => {
     const newValue = e.target.value;
-    const prevValue = value;
     setError(null);
 
-    // 한글 조합 중일 때는 즉시 반영
-    if (isComposing) {
-      if (onChangeRef.current) {
-        onChangeRef.current(newValue);
-      }
-      return;
+    // 디바운싱을 제거하고 모든 입력(영어, 한글 조합 중, 지우기)을 즉시 반영합니다.
+    if (onChangeRef.current) {
+      onChangeRef.current(newValue);
     }
-
-    // 지우기 동작(문자 수가 줄어들 때)은 즉시 반영
-    if (newValue.length < prevValue.length) {
-      if (onChangeRef.current) {
-        onChangeRef.current(newValue);
-      }
-      return;
-    }
-
-    // 입력 동작은 디바운싱 적용
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    debounceTimerRef.current = setTimeout(() => {
-      if (onChangeRef.current) {
-        onChangeRef.current(newValue);
-      }
-    }, 300);
-  }, [isComposing, value]);
+  }, []);
 
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      // Enter 키를 누르면 즉시 onChange 호출
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-      if (onChangeRef.current) {
-        onChangeRef.current(e.target.value);
-      }
+      // Enter 키를 누를 때의 디바운싱 취소 로직은 더 이상 필요하지 않습니다.
     }
   }, []);
 
@@ -219,15 +183,13 @@ const AddressSearch = ({
   }, []);
 
   const handleCompositionUpdate = useCallback(() => {
-    // 조합 업데이트 중에는 아무것도 하지 않음
+    // 조합 업데이트 중에는 아무것도 하지 않음 (onChange가 이미 처리)
   }, []);
 
   const handleCompositionEnd = useCallback((e) => {
     setIsComposing(false);
-    // 조합이 완료되면 즉시 onChange 호출
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
+    // 조합이 완료되면 즉시 onChange가 호출되도록 보장합니다.
+    // handleInputChange가 이미 처리하지만, IME 동작 차이를 고려해 안전장치로 둡니다.
     if (onChangeRef.current) {
       onChangeRef.current(e.target.value);
     }

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { ChevronRight, Plus, Save, X, Star, Home, Car, Train, MapPin } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import Header from '../common/Header';
@@ -113,6 +113,7 @@ const AddProperty = () => {
 
   // 위치 선택 핸들러
   const handleLocationSelect = useCallback((locationData) => {
+    console.log('[AddProperty] 주소 선택됨:', locationData);
     setFormData(prev => ({
       ...prev,
       address: locationData.address,
@@ -522,20 +523,18 @@ const AddProperty = () => {
                         placeholder="기본 정보에서 주소를 입력하세요"
                       />
                     </div>
-                    {(formData.latitude && formData.longitude) && (
-                      <div>
-                        <label className="block text-white/80 text-sm mb-2">지도</label>
-                        <GoogleMap
-                          latitude={formData.latitude}
-                          longitude={formData.longitude}
-                          address={formData.address}
-                          height="300px"
-                          showMarker={true}
-                          draggable={true}
-                          onLocationSelect={handleLocationSelect}
-                        />
-                      </div>
-                    )}
+                    <div>
+                      <label className="block text-white/80 text-sm mb-2">지도</label>
+                      <GoogleMap
+                        latitude={formData.latitude}
+                        longitude={formData.longitude}
+                        address={formData.address}
+                        height="300px"
+                        showMarker={true}
+                        draggable={true}
+                        onLocationSelect={handleLocationSelect}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

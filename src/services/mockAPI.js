@@ -103,7 +103,6 @@ const apiCall = async (endpoint, options = {}) => {
     
     if (!res.ok) {
       const errorText = await res.text();
-      console.error('API Error:', res.status, errorText);
       throw new Error(`API 호출 실패 (${res.status}): ${errorText}`);
     }
     
@@ -114,8 +113,6 @@ const apiCall = async (endpoint, options = {}) => {
     
     return await res.json();
   } catch (error) {
-    console.error('API Call Error:', error);
-    
     // 개발 환경에서 API 서버가 없을 때 mock 데이터 사용
     if (process.env.NODE_ENV === 'development' && error.message.includes('Failed to fetch')) {
       if (endpoint === '/api/login') {
@@ -136,21 +133,19 @@ const uploadApiCall = async (endpoint, formData, token) => {
   try {
     const res = await fetch(url, {
       method: 'POST',
+      body: formData,
       headers: {
         'Authorization': `Bearer ${token}`
-      },
-      body: formData
+      }
     });
     
     if (!res.ok) {
       const errorText = await res.text();
-      console.error('Upload API Error:', res.status, errorText);
       throw new Error(`업로드 실패 (${res.status}): ${errorText}`);
     }
     
     return await res.json();
   } catch (error) {
-    console.error('Upload API Call Error:', error);
     throw error;
   }
 };
@@ -188,7 +183,6 @@ export const api = {
                 : null
             };
           } catch (error) {
-            console.error(`Failed to fetch images for property ${property.id}:`, error);
             return {
               ...property,
               propertyImages: [],
@@ -228,7 +222,6 @@ export const api = {
                 : null
             };
           } catch (error) {
-            console.error(`Failed to fetch images for property ${property.id}:`, error);
             return {
               ...property,
               propertyImages: [],
@@ -248,32 +241,21 @@ export const api = {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     
-    // 이미지 정보도 함께 가져오기
-    try {
-      const images = await api.getPropertyImages(id, token);
-      const processedImages = images ? images.map(img => ({
-        ...img,
-        filePath: getImageUrl(img.filePath)
-      })) : [];
-      
-      return {
-        ...property,
-        propertyImages: processedImages,
-        mainImageUrl: processedImages.length > 0 
-          ? (processedImages.find(img => img.isMainImage) || processedImages[0]).filePath 
-          : null
-      };
-    } catch (error) {
-      console.error(`Failed to fetch images for property ${id}:`, error);
-      return {
-        ...property,
-        propertyImages: [],
-        mainImageUrl: null
-      };
+    // 이미지 정보 추가
+    if (property) {
+      try {
+        const images = await api.getPropertyImages(id, token);
+        return { ...property, propertyImages: images };
+      } catch (error) {
+        return { ...property, propertyImages: [] };
+      }
     }
+    
+    return property;
   },
 
-  createProperty: async (propertyData, token) => {
+  addProperty: async (propertyData, token) => {
+    // 백엔드 API가 전체 propertyData 객체를 받도록 수정
     return apiCall('/api/properties', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` },
@@ -281,11 +263,12 @@ export const api = {
     });
   },
 
-  updateProperty: async (id, data, token) => {
+  updateProperty: async (id, propertyData, token) => {
+    // 백엔드 API가 전체 propertyData 객체를 받도록 수정
     return apiCall(`/api/properties/${id}`, {
       method: 'PUT',
       headers: { 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify(data)
+      body: JSON.stringify(propertyData)
     });
   },
 

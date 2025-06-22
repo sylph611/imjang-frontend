@@ -6,7 +6,7 @@ import { api } from '../../services/mockAPI';
 
 const PropertyMapView = () => {
   const { setCurrentView, setSelectedProperty, token } = useApp();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [propertiesInBounds, setPropertiesInBounds] = useState([]);
   const [mapInitialized, setMapInitialized] = useState(false);
@@ -159,6 +159,7 @@ const PropertyMapView = () => {
 
     const initMap = async () => {
       try {
+        setLoading(true);
         const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
         if (!apiKey || apiKey === 'YOUR_API_KEY') {
           throw new Error('Google Maps API 키가 설정되지 않았습니다.');
@@ -248,6 +249,12 @@ const PropertyMapView = () => {
           
           mapInstanceRef.current = map;
           
+          google.maps.event.addListenerOnce(map, 'tilesloaded', () => {
+            if (isMounted) {
+              fetchPropertiesAndDrawMarkers(map);
+            }
+          });
+          
           // 디바운싱된 idle 이벤트 리스너
           if (idleListenerRef.current) {
             google.maps.event.removeListener(idleListenerRef.current);
@@ -301,6 +308,7 @@ const PropertyMapView = () => {
         setMapInitialized(true);
       } catch (err) {
         if (isMounted) setError(err.message);
+        setLoading(false);
       }
     };
 

@@ -139,9 +139,9 @@ const GoogleMap = ({
     };
 
     initMap();
-  }, [latitude, longitude, address, onLocationSelect, showMarker, draggable]);
+  }, []);
 
-  // 좌표가 변경될 때 지도 중심 이동
+  // 좌표가 변경될 때 지도 중심과 마커 위치를 업데이트합니다.
   useEffect(() => {
     if (map && latitude && longitude) {
       const newPosition = { 
@@ -150,12 +150,32 @@ const GoogleMap = ({
       };
       
       map.setCenter(newPosition);
+      map.setZoom(15);
       
       if (markerRef.current) {
         markerRef.current.setPosition(newPosition);
+      } else if (showMarker) {
+        // 이전에 마커가 없었다면 새로 생성
+        const marker = new window.google.maps.Marker({
+          position: newPosition,
+          map: map,
+          draggable: draggable,
+          title: address || '매물 위치'
+        });
+        markerRef.current = marker;
+
+        if (draggable && onLocationSelect) {
+            marker.addListener('dragend', () => {
+              const position = marker.getPosition();
+              onLocationSelect({
+                latitude: position.lat(),
+                longitude: position.lng()
+              });
+            });
+          }
       }
     }
-  }, [map, latitude, longitude]);
+  }, [map, latitude, longitude, address, draggable, showMarker, onLocationSelect]);
 
   if (error) {
     return (
