@@ -24,24 +24,19 @@ const PropertyMapView = () => {
 
   const fetchPropertiesAndDrawMarkers = useCallback(async (map) => {
     if (!token) {
-      console.log('토큰이 없어서 매물 조회를 건너뜁니다.');
       setLoading(false);
       return;
     }
 
     try {
-      console.log('매물 조회 시작...');
       const bounds = map.getBounds();
       if (!bounds) {
-        console.log('지도 bounds가 없어서 매물 조회를 건너뜁니다.');
         setLoading(false);
         return;
       }
 
       const ne = bounds.getNorthEast();
       const sw = bounds.getSouthWest();
-      
-      console.log('지도 범위:', { ne: { lat: ne.lat(), lng: ne.lng() }, sw: { lat: sw.lat(), lng: sw.lng() } });
       
       // bounds가 크게 변경되지 않았다면 스킵 (더 엄격한 조건으로 변경)
       if (lastBoundsRef.current) {
@@ -52,10 +47,7 @@ const PropertyMapView = () => {
         const latDiff = Math.abs(ne.lat() - lastNe.lat()) / Math.abs(lastNe.lat() - lastSw.lat());
         const lngDiff = Math.abs(ne.lng() - lastNe.lng()) / Math.abs(lastNe.lng() - lastSw.lng());
         
-        console.log('bounds 변화율:', { latDiff, lngDiff });
-        
         if (latDiff < 0.05 && lngDiff < 0.05) {
-          console.log('지도 범위 변화가 미미하여 매물 조회를 건너뜁니다.');
           return;
         }
       }
@@ -63,9 +55,7 @@ const PropertyMapView = () => {
       lastBoundsRef.current = bounds;
       
       setLoading(true);
-      console.log('API 호출 중...');
       const properties = await api.getPropertiesInBounds(sw.lat(), ne.lat(), sw.lng(), ne.lng(), token);
-      console.log('API 응답 받음:', properties.length, '개의 매물');
       
       // 기존 마커 중 범위를 벗어난 것들만 제거
       const newPropertyIds = new Set(properties.map(p => p.id));
@@ -158,10 +148,8 @@ const PropertyMapView = () => {
       });
 
       setPropertiesInBounds(properties);
-      console.log('매물 조회 완료, 로딩 상태 해제');
       setLoading(false);
     } catch (err) {
-      console.error('범위 내 매물 조회 실패:', err);
       setLoading(false);
     }
   }, [token]);
@@ -266,14 +254,12 @@ const PropertyMapView = () => {
           }
           
           idleListenerRef.current = map.addListener('idle', () => {
-            console.log('지도 idle 이벤트 발생');
             if (debounceTimerRef.current) {
               clearTimeout(debounceTimerRef.current);
             }
             
             debounceTimerRef.current = setTimeout(() => {
               if (isMounted) {
-                console.log('디바운싱 후 매물 조회 실행');
                 fetchPropertiesAndDrawMarkers(map);
               }
             }, 300); // 300ms 디바운싱
@@ -281,21 +267,17 @@ const PropertyMapView = () => {
           
           // 지도 이동 이벤트도 추가
           map.addListener('bounds_changed', () => {
-            console.log('지도 bounds 변경됨');
           });
 
           map.addListener('dragend', () => {
-            console.log('지도 드래그 종료');
           });
 
           map.addListener('zoom_changed', () => {
-            console.log('지도 줌 변경됨');
           });
           
           // 초기 로드 - 지도가 완전히 로드된 후 실행
           setTimeout(() => {
             if (isMounted) {
-              console.log('초기 매물 조회 시작');
               fetchPropertiesAndDrawMarkers(map);
             }
           }, 1000);
@@ -319,7 +301,6 @@ const PropertyMapView = () => {
         setMapInitialized(true);
       } catch (err) {
         if (isMounted) setError(err.message);
-        console.error('지도 초기화 실패:', err);
       }
     };
 
