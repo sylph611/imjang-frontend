@@ -28,7 +28,7 @@ const PropertyDetail = () => {
           await fetchPropertyDetail(selectedProperty);
           // 이미지 목록은 getPropertyDetail에서 함께 가져오므로 별도 호출 불필요
         } catch (error) {
-          console.error('Failed to fetch property detail:', error);
+          // console.error('Failed to fetch property detail:', error);
         } finally {
           setLoading(false);
         }
@@ -186,6 +186,13 @@ const PropertyDetail = () => {
       longitude: locationData.longitude
     }));
   }, []);
+
+  // form의 위도(latitude) 값이 변경될 때마다 로그를 출력하여 상태 변경을 추적합니다.
+  useEffect(() => {
+    if (form?.latitude) {
+      console.log('[PropertyDetail] form 상태 업데이트됨, 위도:', form.latitude);
+    }
+  }, [form?.latitude]);
 
   // 수정 폼 입력 핸들러
   const handleChange = (e) => {
