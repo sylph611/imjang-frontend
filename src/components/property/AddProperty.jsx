@@ -4,7 +4,7 @@ import { useApp } from '../../context/AppContext';
 import Header from '../common/Header';
 
 const AddProperty = () => {
-  const { setCurrentView, addProperty } = useApp();
+  const { setCurrentView, addProperty, setSelectedProperty } = useApp();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -158,8 +158,11 @@ const AddProperty = () => {
         }
       };
 
-      await addProperty(dataToSave);
-      setCurrentView('list');
+      const newProperty = await addProperty(dataToSave);
+      
+      // 생성된 매물의 상세 페이지로 이동
+      setSelectedProperty(newProperty.id);
+      setCurrentView('detail');
     } catch (error) {
       alert('매물 기록 저장에 실패했습니다.');
     }
@@ -180,7 +183,10 @@ const AddProperty = () => {
         </button>
         
         <div className="glass-effect rounded-3xl p-8 shadow-2xl animate-fade-in">
-          <h1 className="text-3xl font-bold text-white mb-8">새 매물 기록 등록</h1>
+          <h1 className="text-3xl font-bold text-white mb-4">새 매물 기록 등록</h1>
+          <p className="text-white/70 mb-8">
+            매물 정보를 입력한 후 저장하면 상세 페이지에서 이미지를 추가할 수 있습니다.
+          </p>
           
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
