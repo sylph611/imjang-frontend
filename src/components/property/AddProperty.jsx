@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
-import { ChevronRight, Plus, Save, X, Star, Home, Car, Train } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { ChevronRight, Plus, Save, X, Star, Home, Car, Train, MapPin } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import Header from '../common/Header';
+import AddressSearch from '../maps/AddressSearch';
+import GoogleMap from '../maps/GoogleMap';
 
 const AddProperty = () => {
   const { setCurrentView, addProperty, setSelectedProperty } = useApp();
@@ -14,6 +16,10 @@ const AddProperty = () => {
     rating: 3,
     status: '검토중',
     images: 0,
+    
+    // 위치 정보 추가
+    latitude: null,
+    longitude: null,
     
     // 면적 관련
     areaPyeong: '',
@@ -57,14 +63,22 @@ const AddProperty = () => {
     }
   });
 
-  const handleInputChange = (field, value) => {
+  const handleInputChange = useCallback((field, value) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
-  };
+  }, []);
 
-  const handleDetailsChange = (field, value) => {
+  // 주소 입력 전용 핸들러 (디바운싱 적용)
+  const handleAddressChange = useCallback((value) => {
+    setFormData(prev => ({
+      ...prev,
+      address: value
+    }));
+  }, []);
+
+  const handleDetailsChange = useCallback((field, value) => {
     setFormData(prev => ({
       ...prev,
       details: {
@@ -72,30 +86,40 @@ const AddProperty = () => {
         [field]: value
       }
     }));
-  };
+  }, []);
 
-  const handleArrayChange = (field, index, value) => {
+  const handleArrayChange = useCallback((field, index, value) => {
     setFormData(prev => ({
       ...prev,
       [field]: prev[field].map((item, i) => i === index ? value : item)
     }));
-  };
+  }, []);
 
-  const addArrayItem = (field) => {
+  const addArrayItem = useCallback((field) => {
     setFormData(prev => ({
       ...prev,
       [field]: [...prev[field], '']
     }));
-  };
+  }, []);
 
-  const removeArrayItem = (field, index) => {
+  const removeArrayItem = useCallback((field, index) => {
     if (formData[field].length > 1) {
       setFormData(prev => ({
         ...prev,
         [field]: prev[field].filter((_, i) => i !== index)
       }));
     }
-  };
+  }, [formData]);
+
+  // 위치 선택 핸들러
+  const handleLocationSelect = useCallback((locationData) => {
+    setFormData(prev => ({
+      ...prev,
+      address: locationData.address,
+      latitude: locationData.latitude,
+      longitude: locationData.longitude
+    }));
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -115,6 +139,10 @@ const AddProperty = () => {
         rating: formData.rating,
         status: formData.status,
         images: formData.images,
+        
+        // 위치 정보 추가
+        latitude: formData.latitude,
+        longitude: formData.longitude,
         
         // 면적 관련
         areaPyeong: formData.areaPyeong ? parseFloat(formData.areaPyeong) : null,
@@ -209,13 +237,11 @@ const AddProperty = () => {
                     
                     <div>
                       <label className="block text-white/80 text-sm mb-2">주소 *</label>
-                      <input
-                        type="text"
+                      <AddressSearch
                         value={formData.address}
-                        onChange={(e) => handleInputChange('address', e.target.value)}
-                        className="input-glass"
-                        placeholder="예: 서울시 강남구 역삼동 123-45"
-                        required
+                        onChange={handleAddressChange}
+                        onLocationSelect={handleLocationSelect}
+                        placeholder="주소, 건물명, 지역명을 입력하세요"
                       />
                     </div>
                     
@@ -474,6 +500,42 @@ const AddProperty = () => {
                         />
                       </div>
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 위치 정보 섹션 */}
+              <div className="col-span-full">
+                <div className="bg-white/5 rounded-2xl p-6">
+                  <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+                    <MapPin className="w-5 h-5 mr-2" />
+                    위치 정보
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-white/80 text-sm mb-2">주소</label>
+                      <input
+                        type="text"
+                        value={formData.address || ''}
+                        readOnly
+                        className="block w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg text-white/70 cursor-not-allowed"
+                        placeholder="기본 정보에서 주소를 입력하세요"
+                      />
+                    </div>
+                    {(formData.latitude && formData.longitude) && (
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">지도</label>
+                        <GoogleMap
+                          latitude={formData.latitude}
+                          longitude={formData.longitude}
+                          address={formData.address}
+                          height="300px"
+                          showMarker={true}
+                          draggable={true}
+                          onLocationSelect={handleLocationSelect}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
