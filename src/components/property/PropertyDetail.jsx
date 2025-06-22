@@ -3,6 +3,8 @@ import { ChevronRight, MapPin, Star, Edit, Trash2, Home, Car, Train, Plus, Camer
 import { useApp } from '../../context/AppContext';
 import Header from '../common/Header';
 import { api } from '../../services/mockAPI';
+import AddressSearch from '../maps/AddressSearch';
+import GoogleMap from '../maps/GoogleMap';
 
 const PropertyDetail = () => {
   const { selectedProperty, propertyDetails, setCurrentView, fetchPropertyDetail, fetchPropertyList, setSelectedProperty, setPropertyDetails, token } = useApp();
@@ -46,40 +48,34 @@ const PropertyDetail = () => {
         status: propertyDetails.status || '검토중',
         images: propertyDetails.images || 0,
         
-        // 면적 관련
+        latitude: propertyDetails.latitude || null,
+        longitude: propertyDetails.longitude || null,
+        
         areaPyeong: propertyDetails.areaPyeong || '',
         areaM2: propertyDetails.areaM2 || '',
         
-        // 공간 구성
         roomCount: propertyDetails.roomCount || 1,
         bathroomCount: propertyDetails.bathroomCount || 1,
         
-        // 층수/방향
         floorNumber: propertyDetails.floorNumber || '',
         totalFloors: propertyDetails.totalFloors || '',
         direction: propertyDetails.direction || '',
         
-        // 건물 정보
         buildingType: propertyDetails.buildingType || '',
         buildYear: propertyDetails.buildYear || '',
         
-        // 비용 관련
         maintenanceFee: propertyDetails.maintenanceFee || '',
         heatingType: propertyDetails.heatingType || '',
         
-        // 편의시설
         parkingAvailable: propertyDetails.parkingAvailable || false,
         elevatorAvailable: propertyDetails.elevatorAvailable || false,
         
-        // 교통 관련
         nearestStation: propertyDetails.nearestStation || '',
         walkingMinutes: propertyDetails.walkingMinutes || '',
         
-        // 장점/단점
         advantages: (propertyDetails.advantages && propertyDetails.advantages.length > 0) ? [...propertyDetails.advantages] : [''],
         disadvantages: (propertyDetails.disadvantages && propertyDetails.disadvantages.length > 0) ? [...propertyDetails.disadvantages] : [''],
         
-        // 추가 상세 정보
         details: propertyDetails.details || {
           options: [],
           memo: '',
@@ -88,7 +84,6 @@ const PropertyDetail = () => {
         }
       });
       
-      // 이미지 정보 설정
       setPropertyImages(propertyDetails.propertyImages || []);
     }
   }, [propertyDetails]);
@@ -182,87 +177,26 @@ const PropertyDetail = () => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [showImageModal, selectedImage, propertyImages, closeImageModal, goToPreviousImage, goToNextImage, zoomIn, zoomOut, rotateImage]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="glass-effect rounded-2xl p-8">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
-          <p className="text-white mt-4 text-center">로딩 중...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const detail = propertyDetails;
-  if (!detail) {
-    return (
-      <div className="min-h-screen">
-        <Header />
-        <div className="max-w-4xl mx-auto px-4 py-8">
-          <button
-            onClick={() => setCurrentView('list')}
-            className="btn-secondary mb-6 flex items-center space-x-2"
-          >
-            <ChevronRight className="w-4 h-4 rotate-180" />
-            <span>목록으로 돌아가기</span>
-          </button>
-          <div className="glass-effect rounded-2xl p-8 text-center">
-            <p className="text-white">데이터를 찾을 수 없습니다.</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case '관심': return 'bg-green-500/20 text-green-300 border-green-500/30';
-      case '검토중': return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30';
-      case '보류': return 'bg-red-500/20 text-red-300 border-red-500/30';
-      default: return 'bg-gray-500/20 text-gray-300 border-gray-500/30';
-    }
-  };
-
-  // 수정 핸들러
-  const handleEdit = () => {
-    setIsEditing(true);
-    setError("");
-  };
-
-  // 삭제 핸들러
-  const handleDelete = async () => {
-    if (!window.confirm("정말 삭제하시겠습니까?")) return;
-    try {
-      console.log('Deleting property:', detail.id); // 디버깅용
-      await api.deleteProperty(detail.id, token);
-      console.log('Property deleted successfully'); // 디버깅용
-      
-      // 즉시 목록으로 이동
-      setCurrentView('list');
-      
-      // 목록 갱신 및 상태 초기화
-      setTimeout(async () => {
-        try {
-          await fetchPropertyList();
-          setSelectedProperty(null);
-          setPropertyDetails(null);
-          console.log('Property list refreshed after deletion'); // 디버깅용
-        } catch (error) {
-          console.error('Failed to refresh property list:', error);
-        }
-      }, 100);
-      
-    } catch (e) {
-      console.error('Delete error:', e); // 디버깅용
-      setError("삭제 실패: " + e.message);
-    }
-  };
+  // 위치 선택 핸들러
+  const handleLocationSelect = useCallback((locationData) => {
+    setForm(prev => ({
+      ...prev,
+      address: locationData.address,
+      latitude: locationData.latitude,
+      longitude: locationData.longitude
+    }));
+  }, []);
 
   // 수정 폼 입력 핸들러
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
+
+  // 주소 입력 전용 핸들러 (디바운싱 적용)
+  const handleAddressChange = useCallback((value) => {
+    setForm((prev) => ({ ...prev, address: value }));
+  }, []);
 
   // details 객체 변경 핸들러
   const handleDetailsChange = (field, value) => {
@@ -298,50 +232,43 @@ const PropertyDetail = () => {
       return;
     }
     
-    // 데이터 타입 변환 및 유효성 검사
     const dataToSave = {
       title: form.title.trim(),
       address: form.address.trim(),
-      price: form.price.trim(), // 문자열로 유지
+      price: form.price.trim(),
       date: form.date || null,
-      rating: form.rating.toString(), // 문자열로 변환
+      rating: form.rating.toString(),
       status: form.status,
       images: form.images,
       
-      // 면적 관련
+      latitude: form.latitude,
+      longitude: form.longitude,
+      
       areaPyeong: form.areaPyeong ? parseFloat(form.areaPyeong) : null,
       areaM2: form.areaM2 ? parseFloat(form.areaM2) : null,
       
-      // 공간 구성
       roomCount: parseInt(form.roomCount) || 1,
       bathroomCount: parseInt(form.bathroomCount) || 1,
       
-      // 층수/방향
       floorNumber: form.floorNumber ? parseInt(form.floorNumber) : null,
       totalFloors: form.totalFloors ? parseInt(form.totalFloors) : null,
       direction: form.direction?.trim() || null,
       
-      // 건물 정보
       buildingType: form.buildingType?.trim() || null,
       buildYear: form.buildYear ? parseInt(form.buildYear) : null,
       
-      // 비용 관련
       maintenanceFee: form.maintenanceFee?.trim() || null,
       heatingType: form.heatingType?.trim() || null,
       
-      // 편의시설
       parkingAvailable: form.parkingAvailable,
       elevatorAvailable: form.elevatorAvailable,
       
-      // 교통 관련
       nearestStation: form.nearestStation?.trim() || null,
       walkingMinutes: form.walkingMinutes ? parseInt(form.walkingMinutes) : null,
       
-      // 장점/단점
       advantages: form.advantages.filter(item => item.trim() !== ''),
       disadvantages: form.disadvantages.filter(item => item.trim() !== ''),
       
-      // 추가 상세 정보
       details: {
         options: form.details.options || [],
         memo: form.details.memo?.trim() || null,
@@ -489,6 +416,82 @@ const PropertyDetail = () => {
     return null;
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="glass-effect rounded-2xl p-8">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
+          <p className="text-white mt-4 text-center">로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const detail = propertyDetails;
+  if (!detail) {
+    return (
+      <div className="min-h-screen">
+        <Header />
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <button
+            onClick={() => setCurrentView('list')}
+            className="btn-secondary mb-6 flex items-center space-x-2"
+          >
+            <ChevronRight className="w-4 h-4 rotate-180" />
+            <span>목록으로 돌아가기</span>
+          </button>
+          <div className="glass-effect rounded-2xl p-8 text-center">
+            <p className="text-white">데이터를 찾을 수 없습니다.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case '관심': return 'bg-green-500/20 text-green-300 border-green-500/30';
+      case '검토중': return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30';
+      case '보류': return 'bg-red-500/20 text-red-300 border-red-500/30';
+      default: return 'bg-gray-500/20 text-gray-300 border-gray-500/30';
+    }
+  };
+
+  // 수정 핸들러
+  const handleEdit = () => {
+    setIsEditing(true);
+    setError("");
+  };
+
+  // 삭제 핸들러
+  const handleDelete = async () => {
+    if (!window.confirm("정말 삭제하시겠습니까?")) return;
+    try {
+      console.log('Deleting property:', detail.id); // 디버깅용
+      await api.deleteProperty(detail.id, token);
+      console.log('Property deleted successfully'); // 디버깅용
+      
+      // 즉시 목록으로 이동
+      setCurrentView('list');
+      
+      // 목록 갱신 및 상태 초기화
+      setTimeout(async () => {
+        try {
+          await fetchPropertyList();
+          setSelectedProperty(null);
+          setPropertyDetails(null);
+          console.log('Property list refreshed after deletion'); // 디버깅용
+        } catch (error) {
+          console.error('Failed to refresh property list:', error);
+        }
+      }, 100);
+      
+    } catch (e) {
+      console.error('Delete error:', e); // 디버깅용
+      setError("삭제 실패: " + e.message);
+    }
+  };
+
   return (
     <div className="min-h-screen">
       <Header />
@@ -518,12 +521,7 @@ const PropertyDetail = () => {
                   />
                   <div className="flex items-center text-white/70 mb-4">
                     <MapPin className="w-5 h-5 mr-2" />
-                    <input
-                      name="address"
-                      value={form.address}
-                      onChange={handleChange}
-                      className="input-glass bg-transparent border-b border-white/30 focus:outline-none focus:border-blue-400 w-full text-white"
-                    />
+                    <span>{form.address || '주소를 입력하세요'}</span>
                   </div>
                 </div>
                 <select
@@ -544,7 +542,7 @@ const PropertyDetail = () => {
                   <div className="relative aspect-video rounded-2xl overflow-hidden bg-white/10">
                     <img
                       src={getMainImageUrl()}
-                      alt={detail.title}
+                      alt={form.title}
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         e.target.style.display = 'none';
@@ -731,6 +729,41 @@ const PropertyDetail = () => {
                         </div>
                       </div>
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 위치 정보 섹션 */}
+              <div className="mb-8">
+                <div className="bg-white/5 rounded-2xl p-6">
+                  <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+                    <MapPin className="w-5 h-5 mr-2" />
+                    위치 정보
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-white/80 text-sm mb-2">주소</label>
+                      <AddressSearch
+                        value={form.address}
+                        onChange={handleAddressChange}
+                        onLocationSelect={handleLocationSelect}
+                        placeholder="주소, 건물명, 지역명을 입력하세요"
+                      />
+                    </div>
+                    {(form.latitude && form.longitude) && (
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">지도</label>
+                        <GoogleMap
+                          latitude={form.latitude}
+                          longitude={form.longitude}
+                          address={form.address}
+                          height="300px"
+                          showMarker={true}
+                          draggable={true}
+                          onLocationSelect={handleLocationSelect}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1115,7 +1148,7 @@ const PropertyDetail = () => {
                   <h1 className="text-3xl font-bold text-white mb-2">{detail.title}</h1>
                   <div className="flex items-center text-white/70 mb-4">
                     <MapPin className="w-5 h-5 mr-2" />
-                    <span>{detail.address}</span>
+                    <span>{detail.address || '주소를 입력하세요'}</span>
                   </div>
                 </div>
                 <span className={`px-4 py-2 rounded-full text-sm font-medium border ${getStatusColor(detail.status)}`}>
@@ -1230,6 +1263,35 @@ const PropertyDetail = () => {
                         </div>
                       </div>
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 위치 정보 섹션 */}
+              <div className="mb-8">
+                <div className="bg-white/5 rounded-2xl p-6">
+                  <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+                    <MapPin className="w-5 h-5 mr-2" />
+                    위치 정보
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-white/80">주소</span>
+                      <span className="text-white">{detail.address || '-'}</span>
+                    </div>
+                    {(detail.latitude && detail.longitude) && (
+                      <div>
+                        <label className="block text-white/80 text-sm mb-2">지도</label>
+                        <GoogleMap
+                          latitude={detail.latitude}
+                          longitude={detail.longitude}
+                          address={detail.address}
+                          height="300px"
+                          showMarker={true}
+                          draggable={false}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

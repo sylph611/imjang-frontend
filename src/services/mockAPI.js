@@ -52,8 +52,28 @@ const getImageUrl = (filePath) => {
 const mockData = {
   login: { token: 'mock-token-123', user: { id: 1, email: 'test@example.com', name: '테스트 사용자' } },
   properties: [
-    { id: 1, title: '강남 아파트', address: '서울시 강남구', price: '10억', date: '2024-01-15', rating: 4.5, status: '관심' },
-    { id: 2, title: '홍대 원룸', address: '서울시 마포구', price: '5000만원', date: '2024-01-10', rating: 3.8, status: '방문예정' }
+    { 
+      id: 1, 
+      title: '강남 아파트', 
+      address: '서울시 강남구 역삼동 123-45', 
+      price: '10억', 
+      date: '2024-01-15', 
+      rating: 4.5, 
+      status: '관심',
+      latitude: 37.5665,
+      longitude: 126.9780
+    },
+    { 
+      id: 2, 
+      title: '홍대 원룸', 
+      address: '서울시 마포구 홍대로 123', 
+      price: '5000만원', 
+      date: '2024-01-10', 
+      rating: 3.8, 
+      status: '방문예정',
+      latitude: 37.5575,
+      longitude: 126.9250
+    }
   ]
 };
 
@@ -145,6 +165,46 @@ export const api = {
 
   getPropertyList: async (token) => {
     const properties = await apiCall('/api/properties', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    // 각 매물의 이미지 정보를 가져오기
+    if (properties && Array.isArray(properties)) {
+      const propertiesWithImages = await Promise.all(
+        properties.map(async (property) => {
+          try {
+            const images = await api.getPropertyImages(property.id, token);
+            
+            const processedImages = images ? images.map(img => ({
+              ...img,
+              filePath: getImageUrl(img.filePath)
+            })) : [];
+            
+            return {
+              ...property,
+              propertyImages: processedImages,
+              mainImageUrl: processedImages.length > 0 
+                ? (processedImages.find(img => img.isMainImage) || processedImages[0]).filePath 
+                : null
+            };
+          } catch (error) {
+            console.error(`Failed to fetch images for property ${property.id}:`, error);
+            return {
+              ...property,
+              propertyImages: [],
+              mainImageUrl: null
+            };
+          }
+        })
+      );
+      return propertiesWithImages;
+    }
+    
+    return properties;
+  },
+
+  getPropertiesInBounds: async (minLat, maxLat, minLng, maxLng, token) => {
+    const properties = await apiCall(`/api/properties/in-bounds?minLat=${minLat}&maxLat=${maxLat}&minLng=${minLng}&maxLng=${maxLng}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     
