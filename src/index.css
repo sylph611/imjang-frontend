@@ -40,4 +40,56 @@
   .input-glass {
     @apply w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all;
   }
+
+  /* 이미지 업로드 관련 스타일 */
+  .image-upload-area {
+    @apply border-2 border-dashed border-white/30 rounded-xl p-8 text-center hover:border-white/50 transition-colors cursor-pointer;
+  }
+
+  .image-preview {
+    @apply relative aspect-square rounded-lg overflow-hidden bg-white/10;
+  }
+
+  .image-overlay {
+    @apply absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-2;
+  }
+
+  .image-action-btn {
+    @apply bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full transition-colors;
+  }
+
+  .image-delete-btn {
+    @apply bg-red-500 hover:bg-red-600 text-white p-2 rounded-full transition-colors;
+  }
+
+  /* 애니메이션 */
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+
+  .animate-slide-in {
+    animation: slideIn 0.3s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
 }

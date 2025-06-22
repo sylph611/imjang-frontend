@@ -11,7 +11,7 @@ const getApiBase = () => {
   
   if (isLocalhost) {
     // 로컬 개발 환경에서는 proxy 사용 (상대 경로)
-    return '';
+    return 'http://localhost:8080';
   }
   
   // 다른 환경에서는 127.0.0.1 사용
@@ -19,6 +19,34 @@ const getApiBase = () => {
 };
 
 const API_BASE = getApiBase();
+
+// 이미지 URL을 올바르게 처리하는 함수
+const getImageUrl = (filePath) => {
+  if (!filePath) {
+    return null;
+  }
+  
+  // 이미 절대 URL인 경우
+  if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+    return filePath;
+  }
+  
+  // 상대 경로인 경우 API_BASE와 결합
+  if (filePath.startsWith('/')) {
+    return API_BASE ? `${API_BASE}${filePath}` : filePath;
+  }
+  
+  // 파일명만 있는 경우 - 여러 가능한 경로 시도
+  const possiblePaths = [
+    API_BASE ? `${API_BASE}/uploads/${filePath}` : `/uploads/${filePath}`,
+    API_BASE ? `${API_BASE}/api/uploads/${filePath}` : `/api/uploads/${filePath}`,
+    API_BASE ? `${API_BASE}/static/${filePath}` : `/static/${filePath}`,
+    API_BASE ? `${API_BASE}/images/${filePath}` : `/images/${filePath}`,
+    filePath // 원본 경로도 시도
+  ];
+  
+  return possiblePaths[0]; // 첫 번째 경로 반환
+};
 
 // Mock 데이터 (API 서버가 없을 때 사용)
 const mockData = {
@@ -32,11 +60,9 @@ const mockData = {
 // API 호출 공통 함수
 const apiCall = async (endpoint, options = {}) => {
   const url = API_BASE ? `${API_BASE}${endpoint}` : endpoint;
-  console.log('API Call:', url, 'Environment:', process.env.NODE_ENV, 'Base:', API_BASE); // 디버깅용
   
   // Mock 모드 체크 (개발 환경에서만)
   if (process.env.NODE_ENV === 'development' && process.env.REACT_APP_USE_MOCK === 'true') {
-    console.log('Using mock data for:', endpoint);
     await new Promise(resolve => setTimeout(resolve, 500)); // 로딩 시뮬레이션
     
     if (endpoint === '/api/login') {
@@ -72,7 +98,6 @@ const apiCall = async (endpoint, options = {}) => {
     
     // 개발 환경에서 API 서버가 없을 때 mock 데이터 사용
     if (process.env.NODE_ENV === 'development' && error.message.includes('Failed to fetch')) {
-      console.log('API 서버 연결 실패, mock 데이터 사용');
       if (endpoint === '/api/login') {
         return mockData.login;
       } else if (endpoint === '/api/properties') {
@@ -80,6 +105,32 @@ const apiCall = async (endpoint, options = {}) => {
       }
     }
     
+    throw error;
+  }
+};
+
+// 파일 업로드용 API 호출 함수
+const uploadApiCall = async (endpoint, formData, token) => {
+  const url = API_BASE ? `${API_BASE}${endpoint}` : endpoint;
+  
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    });
+    
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error('Upload API Error:', res.status, errorText);
+      throw new Error(`업로드 실패 (${res.status}): ${errorText}`);
+    }
+    
+    return await res.json();
+  } catch (error) {
+    console.error('Upload API Call Error:', error);
     throw error;
   }
 };
@@ -93,15 +144,73 @@ export const api = {
   },
 
   getPropertyList: async (token) => {
-    return apiCall('/api/properties', {
+    const properties = await apiCall('/api/properties', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
+    
+    // 각 매물의 이미지 정보를 가져오기
+    if (properties && Array.isArray(properties)) {
+      const propertiesWithImages = await Promise.all(
+        properties.map(async (property) => {
+          try {
+            const images = await api.getPropertyImages(property.id, token);
+            
+            const processedImages = images ? images.map(img => ({
+              ...img,
+              filePath: getImageUrl(img.filePath)
+            })) : [];
+            
+            return {
+              ...property,
+              propertyImages: processedImages,
+              mainImageUrl: processedImages.length > 0 
+                ? (processedImages.find(img => img.isMainImage) || processedImages[0]).filePath 
+                : null
+            };
+          } catch (error) {
+            console.error(`Failed to fetch images for property ${property.id}:`, error);
+            return {
+              ...property,
+              propertyImages: [],
+              mainImageUrl: null
+            };
+          }
+        })
+      );
+      return propertiesWithImages;
+    }
+    
+    return properties;
   },
 
   getPropertyDetail: async (id, token) => {
-    return apiCall(`/api/properties/${id}`, {
+    const property = await apiCall(`/api/properties/${id}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
+    
+    // 이미지 정보도 함께 가져오기
+    try {
+      const images = await api.getPropertyImages(id, token);
+      const processedImages = images ? images.map(img => ({
+        ...img,
+        filePath: getImageUrl(img.filePath)
+      })) : [];
+      
+      return {
+        ...property,
+        propertyImages: processedImages,
+        mainImageUrl: processedImages.length > 0 
+          ? (processedImages.find(img => img.isMainImage) || processedImages[0]).filePath 
+          : null
+      };
+    } catch (error) {
+      console.error(`Failed to fetch images for property ${id}:`, error);
+      return {
+        ...property,
+        propertyImages: [],
+        mainImageUrl: null
+      };
+    }
   },
 
   createProperty: async (propertyData, token) => {
@@ -123,6 +232,74 @@ export const api = {
   deleteProperty: async (id, token) => {
     return apiCall(`/api/properties/${id}`, {
       method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+  },
+
+  // 이미지 관련 API
+  uploadPropertyImage: async (propertyId, file, displayOrder = null, isMainImage = false, token) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (displayOrder !== null) {
+      formData.append('displayOrder', displayOrder);
+    }
+    formData.append('isMainImage', isMainImage);
+    
+    const result = await uploadApiCall(`/api/properties/${propertyId}/images`, formData, token);
+    return {
+      ...result,
+      filePath: getImageUrl(result.filePath)
+    };
+  },
+
+  uploadMultiplePropertyImages: async (propertyId, files, token) => {
+    const formData = new FormData();
+    files.forEach(file => {
+      formData.append('files', file);
+    });
+    
+    const results = await uploadApiCall(`/api/properties/${propertyId}/images/multiple`, formData, token);
+    return Array.isArray(results) ? results.map(result => ({
+      ...result,
+      filePath: getImageUrl(result.filePath)
+    })) : results;
+  },
+
+  getPropertyImages: async (propertyId, token) => {
+    const images = await apiCall(`/api/properties/${propertyId}/images`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    return Array.isArray(images) ? images.map(img => ({
+      ...img,
+      filePath: getImageUrl(img.filePath)
+    })) : images;
+  },
+
+  deletePropertyImage: async (propertyId, imageId, token) => {
+    return apiCall(`/api/properties/${propertyId}/images/${imageId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+  },
+
+  deleteAllPropertyImages: async (propertyId, token) => {
+    return apiCall(`/api/properties/${propertyId}/images`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+  },
+
+  setMainImage: async (propertyId, imageId, token) => {
+    return apiCall(`/api/properties/${propertyId}/images/${imageId}/main`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+  },
+
+  updateImageOrder: async (propertyId, imageId, order, token) => {
+    return apiCall(`/api/properties/${propertyId}/images/${imageId}/order?order=${order}`, {
+      method: 'PATCH',
       headers: { 'Authorization': `Bearer ${token}` }
     });
   }

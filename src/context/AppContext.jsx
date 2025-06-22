@@ -121,6 +121,7 @@ export const AppProvider = ({ children }) => {
       
       const newProperty = await api.createProperty(dataToSave, token);
       setPropertyList(prev => [newProperty, ...prev]);
+      return newProperty;
     } catch (error) {
       console.error('Failed to add property:', error);
       throw error;

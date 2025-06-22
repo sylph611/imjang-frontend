@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronRight, MapPin, Star, Edit, Trash2, Home, Car, Train, Plus } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { ChevronRight, MapPin, Star, Edit, Trash2, Home, Car, Train, Plus, Camera, Upload, X, Image as ImageIcon, ZoomIn, ZoomOut, RotateCw, ChevronLeft } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import Header from '../common/Header';
 import { api } from '../../services/mockAPI';
@@ -10,6 +10,13 @@ const PropertyDetail = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState(null);
   const [error, setError] = useState("");
+  const [propertyImages, setPropertyImages] = useState([]);
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [imageScale, setImageScale] = useState(1);
+  const [imageRotation, setImageRotation] = useState(0);
 
   useEffect(() => {
     const loadDetail = async () => {
@@ -17,6 +24,7 @@ const PropertyDetail = () => {
         setLoading(true);
         try {
           await fetchPropertyDetail(selectedProperty);
+          // 이미지 목록은 getPropertyDetail에서 함께 가져오므로 별도 호출 불필요
         } catch (error) {
           console.error('Failed to fetch property detail:', error);
         } finally {
@@ -25,7 +33,7 @@ const PropertyDetail = () => {
       }
     };
     loadDetail();
-  }, [selectedProperty, fetchPropertyDetail]);
+  }, [selectedProperty, fetchPropertyDetail, token]);
 
   useEffect(() => {
     if (propertyDetails) {
@@ -79,8 +87,100 @@ const PropertyDetail = () => {
           shortTermRent: false
         }
       });
+      
+      // 이미지 정보 설정
+      setPropertyImages(propertyDetails.propertyImages || []);
     }
   }, [propertyDetails]);
+
+  // 모달 관련 함수들을 먼저 정의
+  const closeImageModal = useCallback(() => {
+    setShowImageModal(false);
+    setSelectedImage(null);
+    setImageScale(1);
+    setImageRotation(0);
+  }, []);
+
+  const zoomIn = useCallback(() => {
+    setImageScale(prev => Math.min(prev * 1.2, 3));
+  }, []);
+
+  const zoomOut = useCallback(() => {
+    setImageScale(prev => Math.max(prev / 1.2, 0.5));
+  }, []);
+
+  const rotateImage = useCallback(() => {
+    setImageRotation(prev => (prev + 90) % 360);
+  }, []);
+
+  const goToPreviousImage = useCallback(() => {
+    if (!selectedImage || propertyImages.length <= 1) return;
+    
+    const currentIndex = propertyImages.findIndex(img => img.id === selectedImage.id);
+    const previousIndex = currentIndex > 0 ? currentIndex - 1 : propertyImages.length - 1;
+    const previousImage = propertyImages[previousIndex];
+    
+    setSelectedImage(previousImage);
+    setImageScale(1);
+    setImageRotation(0);
+  }, [selectedImage, propertyImages]);
+
+  const goToNextImage = useCallback(() => {
+    if (!selectedImage || propertyImages.length <= 1) return;
+    
+    const currentIndex = propertyImages.findIndex(img => img.id === selectedImage.id);
+    const nextIndex = currentIndex < propertyImages.length - 1 ? currentIndex + 1 : 0;
+    const nextImage = propertyImages[nextIndex];
+    
+    setSelectedImage(nextImage);
+    setImageScale(1);
+    setImageRotation(0);
+  }, [selectedImage, propertyImages]);
+
+  const handleImageClick = useCallback((image) => {
+    setSelectedImage(image);
+    setShowImageModal(true);
+    setImageScale(1);
+    setImageRotation(0);
+  }, []);
+
+  // 키보드 이벤트 핸들러
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!showImageModal) return;
+      
+      switch (e.key) {
+        case 'Escape':
+          closeImageModal();
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          goToPreviousImage();
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          goToNextImage();
+          break;
+        case '+':
+        case '=':
+          e.preventDefault();
+          zoomIn();
+          break;
+        case '-':
+          e.preventDefault();
+          zoomOut();
+          break;
+        case 'r':
+        case 'R':
+          e.preventDefault();
+          rotateImage();
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showImageModal, selectedImage, propertyImages, closeImageModal, goToPreviousImage, goToNextImage, zoomIn, zoomOut, rotateImage]);
 
   if (loading) {
     return (
@@ -281,6 +381,114 @@ const PropertyDetail = () => {
     }
   };
 
+  // 이미지 업로드 관련 핸들러들
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files);
+    setSelectedFiles(files);
+  };
+
+  const handleImageUpload = async () => {
+    if (selectedFiles.length === 0) return;
+    
+    setUploadingImages(true);
+    setError("");
+    
+    try {
+      let uploadedImages = [];
+      
+      if (selectedFiles.length === 1) {
+        // 단일 이미지 업로드
+        const isMainImage = propertyImages.length === 0; // 첫 번째 이미지는 메인 이미지로 설정
+        const result = await api.uploadPropertyImage(
+          detail.id, 
+          selectedFiles[0], 
+          propertyImages.length + 1, 
+          isMainImage, 
+          token
+        );
+        uploadedImages = [result];
+      } else {
+        // 다중 이미지 업로드
+        const results = await api.uploadMultiplePropertyImages(detail.id, selectedFiles, token);
+        uploadedImages = Array.isArray(results) ? results : [results];
+      }
+      
+      // 로컬 상태 즉시 업데이트
+      setPropertyImages(prev => [...prev, ...uploadedImages]);
+      
+      // 매물 상세 정보 새로고침 (이미지 정보 포함)
+      await fetchPropertyDetail(detail.id);
+      
+      // 매물 목록도 새로고침 (이미지 개수 업데이트)
+      await fetchPropertyList();
+      
+      setSelectedFiles([]);
+    } catch (e) {
+      console.error('Image upload error:', e);
+      setError("이미지 업로드 실패: " + e.message);
+    } finally {
+      setUploadingImages(false);
+    }
+  };
+
+  const handleDeleteImage = async (imageId) => {
+    if (!window.confirm("이 이미지를 삭제하시겠습니까?")) return;
+    
+    try {
+      await api.deletePropertyImage(detail.id, imageId, token);
+      
+      // 로컬 상태 즉시 업데이트
+      setPropertyImages(prev => prev.filter(img => img.id !== imageId));
+      
+      // 매물 목록만 새로고침 (이미지 개수 업데이트)
+      await fetchPropertyList();
+    } catch (e) {
+      console.error('Image delete error:', e);
+      setError("이미지 삭제 실패: " + e.message);
+    }
+  };
+
+  const handleSetMainImage = async (imageId) => {
+    try {
+      await api.setMainImage(detail.id, imageId, token);
+      
+      // 로컬 상태 즉시 업데이트
+      setPropertyImages(prev => prev.map(img => ({
+        ...img,
+        isMainImage: img.id === imageId
+      })));
+      
+      // 매물 상세 정보 새로고침
+      await fetchPropertyDetail(detail.id);
+      
+      // 매물 목록도 새로고침 (메인 이미지 변경 반영)
+      await fetchPropertyList();
+    } catch (e) {
+      console.error('Set main image error:', e);
+      setError("메인 이미지 설정 실패: " + e.message);
+    }
+  };
+
+  const getMainImageUrl = () => {
+    // propertyDetails에서 mainImageUrl 확인
+    if (propertyDetails?.mainImageUrl) {
+      return propertyDetails.mainImageUrl;
+    }
+    
+    // propertyImages에서 메인 이미지 찾기
+    const mainImage = propertyImages.find(img => img.isMainImage);
+    if (mainImage) {
+      return mainImage.filePath;
+    }
+    
+    // 첫 번째 이미지 반환
+    if (propertyImages.length > 0) {
+      return propertyImages[0].filePath;
+    }
+    
+    return null;
+  };
+
   return (
     <div className="min-h-screen">
       <Header />
@@ -329,6 +537,27 @@ const PropertyDetail = () => {
                   <option value="보류">보류</option>
                 </select>
               </div>
+
+              {/* 메인 이미지 */}
+              {getMainImageUrl() && (
+                <div className="mb-8">
+                  <div className="relative aspect-video rounded-2xl overflow-hidden bg-white/10">
+                    <img
+                      src={getMainImageUrl()}
+                      alt={detail.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-white/10 flex items-center justify-center" style={{ display: 'none' }}>
+                      <ImageIcon className="w-24 h-24 text-white/30" />
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                 <div className="space-y-6">
                   <div className="bg-white/5 rounded-2xl p-6">
@@ -360,7 +589,7 @@ const PropertyDetail = () => {
                           name="status"
                           value={form.status}
                           onChange={handleChange}
-                          className="input-glass"
+                          className={`px-4 py-2 rounded-full text-sm font-medium border ${getStatusColor(form.status)} bg-transparent`}
                         >
                           <option value="관심">관심</option>
                           <option value="검토중">검토중</option>
@@ -503,6 +732,148 @@ const PropertyDetail = () => {
                       </div>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* 이미지 섹션 */}
+              <div className="mb-8">
+                <div className="bg-white/5 rounded-2xl p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-semibold text-white flex items-center">
+                      <Camera className="w-5 h-5 mr-2" />
+                      매물 이미지
+                    </h3>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                        id="image-upload-edit"
+                      />
+                      <label
+                        htmlFor="image-upload-edit"
+                        className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 px-3 py-1 rounded-lg text-sm transition-all cursor-pointer flex items-center"
+                      >
+                        <Upload className="w-4 h-4 mr-1" />
+                        이미지 선택
+                      </label>
+                      {selectedFiles.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleImageUpload}
+                          disabled={uploadingImages}
+                          className="bg-green-500/20 hover:bg-green-500/30 text-green-300 px-3 py-1 rounded-lg text-sm transition-all flex items-center disabled:opacity-50"
+                        >
+                          {uploadingImages ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-300 mr-1"></div>
+                              업로드 중...
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="w-4 h-4 mr-1" />
+                              업로드 ({selectedFiles.length}개)
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 선택된 파일 목록 */}
+                  {selectedFiles.length > 0 && (
+                    <div className="mb-4 p-3 bg-white/10 rounded-lg">
+                      <p className="text-white/80 text-sm mb-2">선택된 파일:</p>
+                      <div className="space-y-1">
+                        {selectedFiles.map((file, index) => (
+                          <div key={index} className="flex items-center justify-between text-white/70 text-sm">
+                            <span>{file.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== index))}
+                              className="text-red-400 hover:text-red-300"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 이미지 목록 */}
+                  {propertyImages.length > 0 ? (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {propertyImages.map((image) => (
+                        <div key={image.id} className="relative group">
+                          <div 
+                            className="relative aspect-square rounded-lg overflow-hidden bg-white/10 cursor-pointer"
+                            onClick={() => handleImageClick(image)}
+                          >
+                            <img
+                              src={image.filePath}
+                              alt={image.originalName}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjMzMzMzMzIi8+CjxwYXRoIGQ9Ik0xMDAgNzBDMTE2LjU2OSA3MCAxMzAgODMuNDMxIDMwIDEwMEMxMzAgMTE2LjU2OSAxMTYuNTY5IDEzMCAxMDAgMTMwQzgzLjQzMSAxMzAgNzAgMTE2LjU2OSA3MCAxMEM3MCA4My40MzEgODMuNDMxIDcwIDEwMCA3MFoiIGZpbGw9IiM2NjY2NjYiLz4KPC9zdmc+';
+                              }}
+                            />
+                            {image.isMainImage && (
+                              <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                                메인
+                              </div>
+                            )}
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-2">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleImageClick(image);
+                                }}
+                                className="bg-green-500 hover:bg-green-600 text-white p-2 rounded-full transition-colors"
+                                title="상세 보기"
+                              >
+                                <ImageIcon className="w-4 h-4" />
+                              </button>
+                              {!image.isMainImage && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSetMainImage(image.id);
+                                  }}
+                                  className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full transition-colors"
+                                  title="메인 이미지로 설정"
+                                >
+                                  <Star className="w-4 h-4" />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteImage(image.id);
+                                }}
+                                className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full transition-colors"
+                                title="이미지 삭제"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                          <p className="text-white/70 text-xs mt-1 truncate">{image.originalName}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <ImageIcon className="w-16 h-16 text-white/30 mx-auto mb-4" />
+                      <p className="text-white/50">등록된 이미지가 없습니다.</p>
+                      <p className="text-white/30 text-sm mt-2">위의 '이미지 선택' 버튼을 클릭하여 이미지를 추가하세요.</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -751,6 +1122,26 @@ const PropertyDetail = () => {
                   {detail.status}
                 </span>
               </div>
+
+              {/* 메인 이미지 */}
+              {getMainImageUrl() && (
+                <div className="mb-8">
+                  <div className="relative aspect-video rounded-2xl overflow-hidden bg-white/10">
+                    <img
+                      src={getMainImageUrl()}
+                      alt={detail.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-white/10 flex items-center justify-center" style={{ display: 'none' }}>
+                      <ImageIcon className="w-24 h-24 text-white/30" />
+                    </div>
+                  </div>
+                </div>
+              )}
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                 <div className="space-y-6">
@@ -840,6 +1231,148 @@ const PropertyDetail = () => {
                       </div>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* 이미지 섹션 */}
+              <div className="mb-8">
+                <div className="bg-white/5 rounded-2xl p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-semibold text-white flex items-center">
+                      <Camera className="w-5 h-5 mr-2" />
+                      매물 이미지
+                    </h3>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                        id="image-upload-edit"
+                      />
+                      <label
+                        htmlFor="image-upload-edit"
+                        className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 px-3 py-1 rounded-lg text-sm transition-all cursor-pointer flex items-center"
+                      >
+                        <Upload className="w-4 h-4 mr-1" />
+                        이미지 선택
+                      </label>
+                      {selectedFiles.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleImageUpload}
+                          disabled={uploadingImages}
+                          className="bg-green-500/20 hover:bg-green-500/30 text-green-300 px-3 py-1 rounded-lg text-sm transition-all flex items-center disabled:opacity-50"
+                        >
+                          {uploadingImages ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-300 mr-1"></div>
+                              업로드 중...
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="w-4 h-4 mr-1" />
+                              업로드 ({selectedFiles.length}개)
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 선택된 파일 목록 */}
+                  {selectedFiles.length > 0 && (
+                    <div className="mb-4 p-3 bg-white/10 rounded-lg">
+                      <p className="text-white/80 text-sm mb-2">선택된 파일:</p>
+                      <div className="space-y-1">
+                        {selectedFiles.map((file, index) => (
+                          <div key={index} className="flex items-center justify-between text-white/70 text-sm">
+                            <span>{file.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== index))}
+                              className="text-red-400 hover:text-red-300"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 이미지 목록 */}
+                  {propertyImages.length > 0 ? (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {propertyImages.map((image) => (
+                        <div key={image.id} className="relative group">
+                          <div 
+                            className="relative aspect-square rounded-lg overflow-hidden bg-white/10 cursor-pointer"
+                            onClick={() => handleImageClick(image)}
+                          >
+                            <img
+                              src={image.filePath}
+                              alt={image.originalName}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjMzMzMzMzIi8+CjxwYXRoIGQ9Ik0xMDAgNzBDMTE2LjU2OSA3MCAxMzAgODMuNDMxIDMwIDEwMEMxMzAgMTE2LjU2OSAxMTYuNTY5IDEzMCAxMDAgMTMwQzgzLjQzMSAxMzAgNzAgMTE2LjU2OSA3MCAxMEM3MCA4My40MzEgODMuNDMxIDcwIDEwMCA3MFoiIGZpbGw9IiM2NjY2NjYiLz4KPC9zdmc+';
+                              }}
+                            />
+                            {image.isMainImage && (
+                              <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                                메인
+                              </div>
+                            )}
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-2">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleImageClick(image);
+                                }}
+                                className="bg-green-500 hover:bg-green-600 text-white p-2 rounded-full transition-colors"
+                                title="상세 보기"
+                              >
+                                <ImageIcon className="w-4 h-4" />
+                              </button>
+                              {!image.isMainImage && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSetMainImage(image.id);
+                                  }}
+                                  className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full transition-colors"
+                                  title="메인 이미지로 설정"
+                                >
+                                  <Star className="w-4 h-4" />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteImage(image.id);
+                                }}
+                                className="bg-red-500 hover:bg-red-600 text-white p-2 rounded-full transition-colors"
+                                title="이미지 삭제"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                          <p className="text-white/70 text-xs mt-1 truncate">{image.originalName}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <ImageIcon className="w-16 h-16 text-white/30 mx-auto mb-4" />
+                      <p className="text-white/50">등록된 이미지가 없습니다.</p>
+                      <p className="text-white/30 text-sm mt-2">위의 '이미지 선택' 버튼을 클릭하여 이미지를 추가하세요.</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -995,6 +1528,107 @@ const PropertyDetail = () => {
           )}
         </div>
       </div>
+
+      {/* 이미지 모달 */}
+      {showImageModal && selectedImage && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="relative max-w-4xl max-h-full w-full h-full flex flex-col">
+            {/* 모달 헤더 */}
+            <div className="flex items-center justify-between bg-white/10 backdrop-blur-sm rounded-t-xl p-4">
+              <h3 className="text-white font-semibold">{selectedImage.originalName}</h3>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={zoomOut}
+                  className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg transition-colors"
+                  title="축소"
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={zoomIn}
+                  className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg transition-colors"
+                  title="확대"
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={rotateImage}
+                  className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg transition-colors"
+                  title="회전"
+                >
+                  <RotateCw className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={closeImageModal}
+                  className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg transition-colors"
+                  title="닫기"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* 이미지 컨테이너 */}
+            <div className="flex-1 bg-black/50 rounded-b-xl overflow-hidden flex items-center justify-center relative">
+              {/* 이전 버튼 */}
+              {propertyImages.length > 1 && (
+                <button
+                  onClick={goToPreviousImage}
+                  className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-3 rounded-full transition-colors z-10"
+                  title="이전 이미지 (←)"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+              )}
+
+              {/* 다음 버튼 */}
+              {propertyImages.length > 1 && (
+                <button
+                  onClick={goToNextImage}
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-3 rounded-full transition-colors z-10"
+                  title="다음 이미지 (→)"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+              )}
+
+              <img
+                src={selectedImage.filePath}
+                alt={selectedImage.originalName}
+                className="max-w-full max-h-full object-contain transition-transform duration-200"
+                style={{
+                  transform: `scale(${imageScale}) rotate(${imageRotation}deg)`
+                }}
+                onError={(e) => {
+                  e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjMzMzMzMzIi8+CjxwYXRoIGQ9Ik0xMDAgNzBDMTE2LjU2OSA3MCAxMzAgODMuNDMxIDMwIDEwMEMxMzAgMTE2LjU2OSAxMTYuNTY5IDEzMCAxMDAgMTMwQzgzLjQzMSAxMzAgNzAgMTE2LjU2OSA3MCAxMEM3MCA4My40MzEgODMuNDMxIDcwIDEwMCA3MFoiIGZpbGw9IiM2NjY2NjYiLz4KPC9zdmc+';
+                }}
+              />
+            </div>
+
+            {/* 이미지 정보 */}
+            <div className="bg-white/10 backdrop-blur-sm rounded-b-xl p-4">
+              <div className="flex items-center justify-between text-white/80 text-sm">
+                <div className="flex items-center space-x-4">
+                  <span>확대: {Math.round(imageScale * 100)}%</span>
+                  <span>회전: {imageRotation}°</span>
+                  {propertyImages.length > 1 && (
+                    <span>
+                      {propertyImages.findIndex(img => img.id === selectedImage.id) + 1} / {propertyImages.length}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center space-x-2">
+                  {selectedImage.isMainImage && (
+                    <span className="bg-blue-500 text-white px-2 py-1 rounded-full text-xs">
+                      메인 이미지
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
