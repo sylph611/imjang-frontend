@@ -76,7 +76,6 @@ const Login = () => {
         
         <div className="mt-6 text-center">
           <p className="text-white/60 text-sm">
-            테스트: test@test.com / password
           </p>
         </div>
       </div>
