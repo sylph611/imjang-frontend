@@ -5,6 +5,7 @@ import Header from '../common/Header';
 import { api } from '../../services/mockAPI';
 import AddressSearch from '../maps/AddressSearch';
 import GoogleMap from '../maps/GoogleMap';
+import SiteKeyModal from './SiteKeyModal';
 
 const PropertyDetail = () => {
   const { selectedProperty, propertyDetails, setCurrentView, fetchPropertyDetail, fetchPropertyList, setSelectedProperty, setPropertyDetails, token } = useApp();
@@ -19,6 +20,8 @@ const PropertyDetail = () => {
   const [showImageModal, setShowImageModal] = useState(false);
   const [imageScale, setImageScale] = useState(1);
   const [imageRotation, setImageRotation] = useState(0);
+  const [siteKeyModalOpen, setSiteKeyModalOpen] = useState(false);
+  const [siteKeys, setSiteKeys] = useState([]);
 
   useEffect(() => {
     const loadDetail = async () => {
@@ -87,6 +90,12 @@ const PropertyDetail = () => {
       setPropertyImages(propertyDetails.propertyImages || []);
     }
   }, [propertyDetails]);
+
+  useEffect(() => {
+    if (propertyDetails?.siteKeys) {
+      setSiteKeys(propertyDetails.siteKeys);
+    }
+  }, [propertyDetails?.siteKeys]);
 
   // 모달 관련 함수들을 먼저 정의
   const closeImageModal = useCallback(() => {
@@ -511,6 +520,16 @@ const PropertyDetail = () => {
           <span>목록으로 돌아가기</span>
         </button>
         <div className="glass-effect rounded-3xl p-8 shadow-2xl animate-fade-in">
+          {/* 크롤링 키 관리 버튼 */}
+          <div className="flex justify-end mb-4">
+            <button
+              className="btn-primary"
+              onClick={() => setSiteKeyModalOpen(true)}
+              type="button"
+            >
+              크롤링 키 관리
+            </button>
+          </div>
           {error && (
             <div className="bg-red-500/20 border border-red-500/30 rounded-xl p-3 text-red-100 text-sm mb-4">
               {error}
@@ -1698,6 +1717,15 @@ const PropertyDetail = () => {
           </div>
         </div>
       )}
+
+      {/* 크롤링 키 관리 모달 */}
+      <SiteKeyModal
+        open={siteKeyModalOpen}
+        onClose={() => setSiteKeyModalOpen(false)}
+        siteKeys={siteKeys}
+        onSave={newKeys => setSiteKeys(newKeys)}
+        propertyId={propertyDetails?.id}
+      />
     </div>
   );
 };
